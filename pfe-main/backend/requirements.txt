@@ -1,0 +1,13 @@
+fastapi
+uvicorn
+motor
+pymongo
+langchain
+langchain-openai
+langgraph
+python-jose[cryptography]
+passlib[bcrypt]
+python-multipart
+python-dotenv
+chromadb
+email-validator
