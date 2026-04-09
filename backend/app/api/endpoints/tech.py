@@ -35,7 +35,7 @@ async def get_tech_articles(background_tasks: BackgroundTasks, category: Optiona
         
     # Get articles ordered by creation date (newest first)
     cursor = db.tech_articles.find(query).sort("created_at", -1)
-    articles = await cursor.to_list(length=3)
+    articles = await cursor.to_list(length=50)
     
     return [{**article, "id": str(article["_id"])} for article in articles]
 

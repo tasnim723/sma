@@ -35,7 +35,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-gradient-to-br from-[#f3fafc] to-[#e7f6f8] p-4 font-sans relative overflow-hidden">
+    <div className="min-h-screen w-full flex items-center justify-center bg-white p-4 font-sans relative overflow-hidden">
       {/* Decorative animated blobs */}
       <motion.div 
         animate={{ y: [0, -20, 0], scale: [1, 1.05, 1] }} 
@@ -52,7 +52,7 @@ export default function LoginPage() {
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ duration: 0.5, ease: "easeOut" }}
-        className="w-full max-w-[420px] bg-white/80 backdrop-blur-xl rounded-[32px] px-8 sm:px-10 py-12 shadow-[0_8px_30px_rgb(0,0,0,0.08)] flex flex-col items-center relative z-10 border border-white"
+        className="w-full max-w-[420px] bg-white rounded-[32px] px-8 sm:px-10 py-12 shadow-[0_8px_30px_rgb(0,0,0,0.08)] flex flex-col items-center relative z-10 border border-gray-100"
       >
         
         {/* Header Section */}
@@ -90,7 +90,7 @@ export default function LoginPage() {
           )}
           
           <div className="space-y-2">
-            <label className="text-[13px] font-[700] text-[#334155] ml-0.5">Email</label>
+            <label className="text-[13px] font-[700] text-black ml-0.5">Email</label>
             <div className="relative flex items-center group">
               <Mail className="absolute left-4 h-[18px] w-[18px] text-gray-400 group-focus-within:text-[#5acddb] transition-colors" strokeWidth={1.5} />
               <input
@@ -105,7 +105,7 @@ export default function LoginPage() {
           </div>
 
           <div className="space-y-2">
-            <label className="text-[13px] font-[700] text-[#334155] ml-0.5">Mot de passe</label>
+            <label className="text-[13px] font-[700] text-black ml-0.5">Mot de passe</label>
             <div className="relative flex items-center group">
               <Lock className="absolute left-4 h-[18px] w-[18px] text-gray-400 group-focus-within:text-[#5acddb] transition-colors" strokeWidth={1.5} />
               <input

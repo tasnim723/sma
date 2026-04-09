@@ -219,7 +219,7 @@
     @apply border-slate-200;
   }
   body {
-    @apply bg-slate-50 text-slate-900 font-sans antialiased selection:bg-[#00BCD4]/30;
+    @apply bg-white text-slate-900 font-sans antialiased selection:bg-[#00BCD4]/30;
     font-size: 16px; /* Restored standard base font */
   }
 }

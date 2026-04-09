@@ -37,7 +37,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   ]
 
   return (
-    <div className="flex h-screen bg-aurora font-sans">
+    <div className="flex h-screen bg-white font-sans">
       {/* Sidebar - Collapsible & Responsive */}
     <div className={`hidden lg:flex transition-all duration-300 ease-in-out ${isCollapsed ? 'w-24' : 'w-64'} bg-white/40 backdrop-blur-3xl border-r border-slate-100 flex-col shadow-[1px_0_20px_rgba(0,0,0,0.02)] relative z-20`}>
       <div className={`p-5 pb-0 flex items-center ${isCollapsed ? 'justify-center' : 'justify-center'}`}>
