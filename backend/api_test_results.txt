@@ -1,0 +1,15 @@
+[ROOT] 200: {'message': 'Welcome to the Multi-Agent PM System API'}
+[LOGIN OK] manager@project.com -> role: PROJECT_MANAGER | token: eyJhbGciOiJIUzI1NiIs...
+[LOGIN OK] manager@pfe.com -> role: MANAGER | token: eyJhbGciOiJIUzI1NiIs...
+[LOGIN OK] lead@project.com -> role: TEAM_LEAD | token: eyJhbGciOiJIUzI1NiIs...
+[LOGIN OK] member@project.com -> role: TEAM_MEMBER | token: eyJhbGciOiJIUzI1NiIs...
+
+[GET /api/members/] 200
+  Count: 4 members
+  -> Alice Manager | manager@project.com | role:PROJECT_MANAGER | position:CEO / Project Manager
+  -> Bob Lead | lead@project.com | role:TEAM_LEAD | position:Tech Lead
+  -> Charlie Member | member@project.com | role:TEAM_MEMBER | position:Developer
+  -> Manager PFE | manager@pfe.com | role:MANAGER | position:Manager
+
+[POST /api/members/] 403
+  Error: {"detail":"The user doesn't have enough privileges (Manager restricted)"}

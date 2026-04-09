@@ -1,0 +1,176 @@
+{
+  "projects": [
+    {
+      "id": "69c5bc1ad25ccca0f0db7ed5",
+      "name": "MeetRemember"
+    },
+    {
+      "id": "69c86fadfa7401846d1df42c",
+      "name": "TechPulse"
+    },
+    {
+      "id": "69c8854ddb28eb8cc849c400",
+      "name": "KidLangLearn"
+    },
+    {
+      "id": "69c8893fe071fc5b110fc0d0",
+      "name": "VR Science Academy"
+    },
+    {
+      "id": "69cad4988f5710dc3806ddfe",
+      "name": "VR Chat Connect"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "69c5bc21d25ccca0f0db7ed8",
+      "title": "Create Meeting API",
+      "project_id": "69c5bc1ad25ccca0f0db7ed5",
+      "status": "DONE"
+    },
+    {
+      "id": "69c5bc21d25ccca0f0db7ed9",
+      "title": "Meeting List Display",
+      "project_id": "69c5bc1ad25ccca0f0db7ed5",
+      "status": "REVIEW"
+    },
+    {
+      "id": "69c5bc21d25ccca0f0db7eda",
+      "title": "Edit Meeting Functionality",
+      "project_id": "69c5bc1ad25ccca0f0db7ed5",
+      "status": "IN_PROGRESS"
+    },
+    {
+      "id": "69c5bc21d25ccca0f0db7edb",
+      "title": "Delete Meeting API",
+      "project_id": "69c5bc1ad25ccca0f0db7ed5",
+      "status": "DONE"
+    },
+    {
+      "id": "69c86fb5fa7401846d1df42f",
+      "title": "Setup Frontend Environment",
+      "project_id": "69c86fadfa7401846d1df42c",
+      "status": "TODO"
+    },
+    {
+      "id": "69c86fb5fa7401846d1df430",
+      "title": "Develop News Fetching API",
+      "project_id": "69c86fadfa7401846d1df42c",
+      "status": "BACKLOG"
+    },
+    {
+      "id": "69c86fb5fa7401846d1df431",
+      "title": "Implement News Display Component",
+      "project_id": "69c86fadfa7401846d1df42c",
+      "status": "BACKLOG"
+    },
+    {
+      "id": "69c86fb5fa7401846d1df432",
+      "title": "Create Search Functionality",
+      "project_id": "69c86fadfa7401846d1df42c",
+      "status": "BACKLOG"
+    },
+    {
+      "id": "69c86fb5fa7401846d1df433",
+      "title": "Setup Newsletter Subscription",
+      "project_id": "69c86fadfa7401846d1df42c",
+      "status": "BACKLOG"
+    },
+    {
+      "id": "69c88556db28eb8cc849c403",
+      "title": "Setup Firebase Authentication",
+      "project_id": "69c8854ddb28eb8cc849c400",
+      "status": "REVIEW"
+    },
+    {
+      "id": "69c88556db28eb8cc849c404",
+      "title": "Develop Game Fetching API",
+      "project_id": "69c8854ddb28eb8cc849c400",
+      "status": "BACKLOG"
+    },
+    {
+      "id": "69c88556db28eb8cc849c405",
+      "title": "Design Mobile Game Interface",
+      "project_id": "69c8854ddb28eb8cc849c400",
+      "status": "BACKLOG"
+    },
+    {
+      "id": "69c88556db28eb8cc849c406",
+      "title": "Implement Progress Tracking Feature",
+      "project_id": "69c8854ddb28eb8cc849c400",
+      "status": "BACKLOG"
+    },
+    {
+      "id": "69c88556db28eb8cc849c407",
+      "title": "Setup AWS S3 for Media Storage",
+      "project_id": "69c8854ddb28eb8cc849c400",
+      "status": "BACKLOG"
+    },
+    {
+      "id": "69c88556db28eb8cc849c408",
+      "title": "Conduct UI/UX Review",
+      "project_id": "69c8854ddb28eb8cc849c400",
+      "status": "BACKLOG"
+    },
+    {
+      "id": "69c88947e071fc5b110fc0d3",
+      "title": "Develop Course Enrollment Feature",
+      "project_id": "69c8893fe071fc5b110fc0d0",
+      "status": "REVIEW"
+    },
+    {
+      "id": "69c88947e071fc5b110fc0d4",
+      "title": "Create Course Content Retrieval",
+      "project_id": "69c8893fe071fc5b110fc0d0",
+      "status": "TODO"
+    },
+    {
+      "id": "69c88947e071fc5b110fc0d5",
+      "title": "Design User Interface for VR Headset",
+      "project_id": "69c8893fe071fc5b110fc0d0",
+      "status": "BACKLOG"
+    },
+    {
+      "id": "69c88947e071fc5b110fc0d6",
+      "title": "Implement Assessment Feature",
+      "project_id": "69c8893fe071fc5b110fc0d0",
+      "status": "BACKLOG"
+    },
+    {
+      "id": "69c88947e071fc5b110fc0d7",
+      "title": "Set Up Database for User Data",
+      "project_id": "69c8893fe071fc5b110fc0d0",
+      "status": "BACKLOG"
+    },
+    {
+      "id": "69cad4a68f5710dc3806de01",
+      "title": "Develop VR Lounge Interface",
+      "project_id": "69cad4988f5710dc3806ddfe",
+      "status": "BACKLOG"
+    },
+    {
+      "id": "69cad4a68f5710dc3806de02",
+      "title": "Implement Chat Functionality",
+      "project_id": "69cad4988f5710dc3806ddfe",
+      "status": "BACKLOG"
+    },
+    {
+      "id": "69cad4a68f5710dc3806de03",
+      "title": "Set Up User Management System",
+      "project_id": "69cad4988f5710dc3806ddfe",
+      "status": "BACKLOG"
+    },
+    {
+      "id": "69cad4a68f5710dc3806de04",
+      "title": "Database Design for User Profiles",
+      "project_id": "69cad4988f5710dc3806ddfe",
+      "status": "BACKLOG"
+    },
+    {
+      "id": "69cad4a68f5710dc3806de05",
+      "title": "Environment Rendering Optimization",
+      "project_id": "69cad4988f5710dc3806ddfe",
+      "status": "BACKLOG"
+    }
+  ]
+}
