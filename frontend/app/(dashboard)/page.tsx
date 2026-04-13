@@ -38,7 +38,7 @@ export default function DashboardPage() {
    if (!user || !token) return null;
 
    return (
-     <div className="min-h-screen">
+    <div className="h-full">
        {user.role === "PROJECT_MANAGER" ? (
          <ManagerDashboard user={user} token={token} />
        ) : (
@@ -73,7 +73,7 @@ function MemberDashboard({ user, token }: any) {
    const efficiency = tasks.length > 0 ? Math.round((doneCount / tasks.length) * 100) : 0;
 
    return (
-      <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-8 pb-16">
+      <motion.div variants={containerVariants} initial="hidden" animate="visible" className="p-4 md:p-8 space-y-8 pb-32">
          {/* Premium Welcome Header */}
          <motion.div variants={itemVariants} className="relative group">
             <div className="absolute inset-0 bg-gradient-to-r from-[#00CCCC]/10 via-transparent to-[#FF0000]/5 rounded-[2rem] blur-xl opacity-30 group-hover:opacity-50 transition-opacity" />
@@ -154,38 +154,37 @@ function MemberDashboard({ user, token }: any) {
             </div>
 
             <div className="lg:col-span-4 space-y-8">
-               {/* AI Mini Card - Light Theme */}
-               <motion.div 
-                  variants={itemVariants}
-                  whileHover={{ y: -5 }}
-                  className="relative group cursor-pointer"
-               >
-                  <div className="absolute inset-0 bg-gradient-to-br from-[#00CCCC]/20 to-[#FF0000]/10 rounded-[2rem] blur-xl opacity-40 group-hover:opacity-60 transition-opacity" />
-                  <div className="relative bg-white/70 backdrop-blur-xl rounded-[2rem] p-6 text-slate-800 overflow-hidden border border-white shadow-xl shadow-slate-200/50">
-                     <div className="absolute top-0 right-0 w-24 h-24 bg-[#00CCCC]/5 rounded-full blur-2xl -mr-12 -mt-12" />
-                     <div className="relative z-10 space-y-4">
-                        <div className="flex items-center gap-3">
-                           <div className="p-2.5 bg-white rounded-xl border border-slate-100 shadow-sm flex items-center justify-center">
-                              <Bot size={22} className="text-[#00CCCC]" />
-                           </div>
-                           <div>
-                              <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#FF0000]/80">Insight Stratégique</p>
-                              <h4 className="text-xs font-black text-slate-400">Assistant I.A.</h4>
-                           </div>
-                        </div>
-                        <p className="text-[14px] font-bold leading-relaxed text-slate-700">
-                           "Optimise tes blocs de temps. Finir la tâche '{activeTasks[0]?.title.slice(0, 15) || 'principale'}' libérera de la capacité."
-                        </p>
-                     </div>
-                  </div>
-               </motion.div>
+                {/* AI Mini Card - Light Theme */}
+                <motion.div 
+                   variants={itemVariants}
+                   whileHover={{ y: -5 }}
+                   className="relative group cursor-pointer"
+                >
+                   <div className="absolute inset-0 bg-gradient-to-br from-[#00CCCC]/20 to-[#FF0000]/10 rounded-[2rem] blur-xl opacity-40 group-hover:opacity-60 transition-opacity" />
+                   <div className="relative bg-white/70 backdrop-blur-xl rounded-[2rem] p-6 text-slate-800 overflow-hidden border border-white shadow-xl shadow-slate-200/50">
+                      <div className="absolute top-0 right-0 w-24 h-24 bg-[#00CCCC]/5 rounded-full blur-2xl -mr-12 -mt-12" />
+                      <div className="relative z-10 space-y-4">
+                         <div className="flex items-center gap-3">
+                            <div className="p-2.5 bg-white rounded-xl border border-slate-100 shadow-sm flex items-center justify-center">
+                               <Bot size={22} className="text-[#00CCCC]" />
+                            </div>
+                            <div>
+                               <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#FF0000]/80">Insight Stratégique</p>
+                               <h4 className="text-xs font-black text-slate-400">Assistant I.A.</h4>
+                            </div>
+                         </div>
+                         <p className="text-[14px] font-bold leading-relaxed text-slate-700 italic">
+                            "Concentrez-vous sur '{activeTasks[0]?.title.slice(0, 20) || 'la mission actuelle'}' pour franchir le prochain palier d'XP."
+                         </p>
+                      </div>
+                   </div>
+                </motion.div>
 
-               {/* Metrics Mini Grid */}
-               <div className="grid grid-cols-2 gap-4">
-                  <KPICard title="Terminé" value={doneCount} icon={<CheckCircle2 />} color="text-emerald-500" bg="bg-emerald-500/10" />
-                  <KPICard title="En Cours" value={tasks.filter(t => t.status === "IN_PROGRESS").length} icon={<Zap />} color="text-[#00CCCC]" bg="bg-[#00CCCC]/10" />
-               </div>
-            </div>
+                <div className="grid grid-cols-2 gap-4">
+                   <KPICard title="Terminé" value={doneCount} icon={<CheckCircle2 />} color="text-emerald-500" bg="glow-green" />
+                   <KPICard title="XP Bonus" value={doneCount * 125} icon={<Zap />} color="text-amber-500" bg="glow-yellow" />
+                </div>
+             </div>
          </div>
       </motion.div>
    )
@@ -195,6 +194,7 @@ function ManagerDashboard({ user, token }: any) {
    const [history, setHistory] = useState<string[]>([])
    const [insights, setInsights] = useState<any[]>([])
    const [projects, setProjects] = useState<any[]>([])
+   const [activeProjectTasks, setActiveProjectTasks] = useState<any[]>([])
    const [stats, setStats] = useState({
       activeProjects: 0,
       completedTasks: 0,
@@ -217,7 +217,18 @@ function ManagerDashboard({ user, token }: any) {
             setHistory(hubRes.data.history || [])
             setInsights(hubRes.data.insights || [])
             if (hubRes.data.stats) setStats(hubRes.data.stats)
-            setProjects(projectsRes.data || [])
+            const loadedProjects = projectsRes.data || [];
+            setProjects(loadedProjects)
+
+            const activeProject = loadedProjects.find((p: any) => p.status !== 'COMPLETED');
+            if (activeProject) {
+                try {
+                    const tasksRes = await axios.get(`http://localhost:8000/api/tasks/project/${activeProject.id}`, { headers: { Authorization: `Bearer ${token}` }});
+                    setActiveProjectTasks(tasksRes.data || []);
+                } catch (e) {
+                    console.error("Failed to fetch active project tasks for XP", e);
+                }
+            }
          } catch (err) {
             console.error("Failed to fetch dashboard data", err)
          } finally {
@@ -228,7 +239,7 @@ function ManagerDashboard({ user, token }: any) {
    }, [token])
 
    return (
-      <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-8 pb-16">
+      <motion.div variants={containerVariants} initial="hidden" animate="visible" className="flex flex-col h-full p-4 md:p-8 space-y-6 pb-2 min-h-0">
          {/* Stats Row */}
          <motion.div variants={itemVariants} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <KPICard title="PROJETS ACTIFS" value={stats.activeProjects} icon={<BarChart3 />} color="text-amber-500" bg="glow-yellow" />
@@ -237,20 +248,20 @@ function ManagerDashboard({ user, token }: any) {
             <KPICard title="CHARGE ÉQUIPE" value={stats.teamCapacity} icon={<Users />} color="text-emerald-500" bg="glow-green" />
          </motion.div>
 
-         <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 items-start">
+         <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 items-stretch flex-1 min-h-0">
             {/* Main Content Area */}
-            <div className="xl:col-span-8 space-y-8">
+            <div className="xl:col-span-8 flex flex-col">
                {/* Live Feed with Timeline UI */}
-               <div className="flex flex-col gap-4">
+               <div className="flex flex-col gap-4 flex-1 min-h-0">
                   <div className="flex items-center justify-between px-4 text-center sm:text-left">
                      <h2 className="text-xl font-bold tracking-wide text-slate-800 flex items-center gap-3">
                         Activité Pulsée
                      </h2>
                   </div>
                   
-                  <div className="relative rounded-[2rem] p-6 backdrop-blur-3xl border border-sky-100 bg-white/85 shadow-[0_10px_40px_rgba(0,0,0,0.03)]">
-                     <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-sky-400/5 to-transparent rounded-full blur-3xl opacity-50" />
-                     <div className="max-h-[520px] overflow-y-auto pr-2 custom-scrollbar space-y-6 relative z-10 p-2">
+                  <div className="relative rounded-[2rem] p-6 backdrop-blur-3xl border border-sky-100 bg-white/85 shadow-[0_10px_40px_rgba(0,0,0,0.03)] flex flex-col flex-1 min-h-0">
+                     <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-sky-400/5 to-transparent rounded-full blur-3xl opacity-50 pointer-events-none" />
+                     <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-6 relative z-10 p-2">
                         <AnimatePresence>
                            {loading ? (
                               [1, 2, 3].map(i => <div key={i} className="h-16 bg-slate-50 animate-pulse rounded-2xl" />)
@@ -336,10 +347,10 @@ function ManagerDashboard({ user, token }: any) {
             </div>
 
             {/* Right Aside Info */}
-            <div className="xl:col-span-4 space-y-4">
+            <div className="xl:col-span-4 flex flex-col gap-6">
                <motion.div 
                   whileHover={{ y: -2 }}
-                  className="relative group cursor-pointer"
+                  className="relative group cursor-pointer shrink-0"
                >
                      <div className="relative nexus-glass rounded-[2rem] px-5 py-4 text-slate-800 overflow-hidden min-h-[130px] flex flex-col justify-center bg-white/40 backdrop-blur-2xl border border-white/50">
                         <div className="absolute top-0 right-0 w-32 h-32 bg-[#00BCD4]/5 rounded-full blur-3xl -mr-16 -mt-16" />
@@ -369,14 +380,27 @@ function ManagerDashboard({ user, token }: any) {
                   const activeProject = projects.find(p => p.status !== 'COMPLETED');
                   if (!activeProject) return null;
                   
+                  // Calculate dynamic XP
+                  let earnedXP = 0;
+                  let totalXP = 0;
+                  activeProjectTasks.forEach(task => {
+                     const xpInfo = task.priority === 'URGENT' ? 500 : task.priority === 'HIGH' ? 300 : task.priority === 'MEDIUM' ? 150 : 50;
+                     totalXP += xpInfo;
+                     if (task.status === 'DONE') earnedXP += xpInfo;
+                  });
+                  if (totalXP === 0) totalXP = 1000; // prevent divide by zero, show empty bar
+                  const xpPercent = Math.min(100, Math.max(0, Math.round((earnedXP / totalXP) * 100)));
+                  const displayProgress = activeProjectTasks.length > 0 ? xpPercent : 0;
+
+                  
                   // Use real milestones if available, otherwise fallback to default empty state
                   const projectMilestones = activeProject.milestones && activeProject.milestones.length > 0 
                      ? activeProject.milestones 
                      : [
                         { title: "Planification", completed: true },
-                        { title: "Développement", completed: activeProject.progress_percentage > 30 },
-                        { title: "Tests", completed: activeProject.progress_percentage > 70 },
-                        { title: "Livraison", completed: activeProject.progress_percentage >= 100 }
+                        { title: "Développement", completed: displayProgress > 30 },
+                        { title: "Tests", completed: displayProgress > 70 },
+                        { title: "Livraison", completed: displayProgress >= 100 }
                        ];
                        
                   const getMilestoneStyles = (title: string, isCompleted: boolean) => {
@@ -438,7 +462,7 @@ function ManagerDashboard({ user, token }: any) {
                   };
 
                   return (
-                     <Link href={`/projects/${activeProject.id || activeProject._id}`} className="nexus-glass rounded-[2rem] p-6 text-slate-800 relative bg-white/40 backdrop-blur-2xl border border-white/50 block group hover:bg-white/60 hover:shadow-2xl transition-all cursor-pointer">
+                     <Link href={`/projects/${activeProject.id || activeProject._id}`} className="flex-1 flex flex-col nexus-glass rounded-[2rem] p-6 text-slate-800 relative bg-white/40 backdrop-blur-2xl border border-white/50 block group hover:bg-white/60 hover:shadow-2xl transition-all cursor-pointer">
                         {/* OVERALL PROGRESS */}
                         <div className="flex justify-between items-center mb-2">
                            <p className="font-bold text-slate-700 w-3/4 truncate">{activeProject.name}</p>
@@ -514,10 +538,10 @@ function ManagerDashboard({ user, token }: any) {
                         {/* XP BAR at very bottom */}
                         <div className="flex justify-between items-center mb-1">
                            <p className="font-bold text-slate-600 text-[11px] tracking-widest font-black uppercase">XP</p>
-                           <p className="font-bold text-slate-600 justify-self-end text-[11px] tracking-widest text-right w-full">6840/10000</p>
+                           <p className="font-bold text-slate-600 justify-self-end text-[11px] tracking-widest text-right w-full">{earnedXP}/{totalXP}</p>
                         </div>
                         <div className="w-full h-1.5 bg-slate-200/50 rounded-full overflow-hidden shadow-inner flex items-center mb-2">
-                           <div className="h-1 bg-[#00BCD4] w-[68%] rounded-full shadow-[0_0_5px_rgba(0,188,212,0.5)]" />
+                           <div className="h-1 bg-[#00BCD4] rounded-full shadow-[0_0_5px_rgba(0,188,212,0.5)] transition-all duration-1000" style={{ width: `${xpPercent}%` }} />
                         </div>
                      </Link>
                   );

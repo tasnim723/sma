@@ -28,14 +28,14 @@ def get_llm(use_mini: bool = True):
             final_model = "llama3"
             
         if final_model:
-            print(f"DEBUG: 🚀SMA ENGINE -> LOCAL-AI (Model: {final_model})")
+            print(f"DEBUG: SMA ENGINE -> LOCAL-AI (Model: {final_model})")
             return ChatOpenAI(temperature=0, model=final_model, base_url=f"{ollama_url}/v1", api_key="ollama")
     except:
         pass
 
     # 🌩️ HYBRID CLOUD FALLBACK (Active until Mistral download finishes)
     # Using llama-3.1-8b-instant for zero-error stability.
-    print(f"DEBUG: 🌩️SMA ENGINE -> HYBRID-CLOUD (Groq 8B) for stability...")
+    print(f"DEBUG: SMA ENGINE -> HYBRID-CLOUD (Groq 8B) for stability...")
     api_key = os.getenv("GROQ_API_KEY") or os.getenv("OPENAI_API_KEY")
     return ChatOpenAI(
         temperature=0, 
@@ -63,5 +63,5 @@ class BaseAgent:
             print(f"ERROR in {self.name}: {str(e)}")
             # Friendly Fallback Message
             from langchain_core.messages import AIMessage
-            fallback = AIMessage(content="⚠️ Désolé, je rencontre des difficultés de connexion avec mes cerveaux IA (Ollama/Groq). Veuillez vérifier votre connexion ou le statut d'Ollama.")
+            fallback = AIMessage(content="Desole, je rencontre des difficultes de connexion avec mes cerveaux IA (Ollama/Groq). Veuillez verifier votre connexion ou le statut d'Ollama.")
             return {"messages": [fallback]}

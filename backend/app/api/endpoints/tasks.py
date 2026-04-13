@@ -172,6 +172,12 @@ async def handle_task_review(db, task_id, attachments, current_user):
         task["status"] = "DONE"
         task["review_feedback"] = feedback
         await log_activity(db, "TASK_UPDATED", str(task["_id"]), task["title"], current_user, details=f"Review passed: {feedback}")
+        
+        # AWArd XP to assignees
+        from app.services.gamification import award_xp
+        assignees = task.get("assignee_ids", [])
+        for uid in assignees:
+            await award_xp(uid, 250) # 250 XP per task
     else:
         await db["tasks"].update_one({"_id": ObjectId(task_id)}, {"$set": {"status": "IN_PROGRESS", "review_feedback": feedback, "updated_at": datetime.utcnow()}})
         task["status"] = "IN_PROGRESS"

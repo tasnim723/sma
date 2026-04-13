@@ -15,16 +15,19 @@ const AVAILABLE_AGENTS = [
 
 export default function AIInsightsPage() {
   return (
-    <div className="space-y-6">
-      <div className="grid lg:grid-cols-4 gap-6">
-        <div className="lg:col-span-3 relative">
+    <div className="flex flex-col h-full min-h-0 p-4">
+      <div className="flex-1 grid lg:grid-cols-4 gap-4 min-h-0 overflow-hidden">
+
+        {/* Chat principal */}
+        <div className="lg:col-span-3 h-full min-h-0">
           <MultiAgentChat />
         </div>
 
-        <div className="space-y-4 bg-white/40 p-4 rounded-[1.5rem] border border-white backdrop-blur-xl shadow-[0_8px_30px_-5px_rgba(0,0,0,0.02)]">
-          <div>
-            <h3 className="font-[900] text-slate-500 text-[11px] uppercase tracking-[0.1em] mb-3">Agents Disponibles</h3>
-            <div className="space-y-1.5">
+        {/* Panneau agents disponibles */}
+        <div className="h-full flex flex-col space-y-4 bg-white/40 p-4 rounded-[1.5rem] border border-white backdrop-blur-xl shadow-[0_8px_30px_-5px_rgba(0,0,0,0.02)] overflow-hidden">
+          <div className="flex flex-col flex-1 min-h-0">
+            <h3 className="font-[900] text-slate-500 text-[11px] uppercase tracking-[0.1em] mb-3 shrink-0">Agents Disponibles</h3>
+            <div className="flex-1 overflow-y-auto space-y-1.5 custom-scrollbar min-h-0 pr-1">
               {AVAILABLE_AGENTS.map((agent) => (
                 <div key={agent.id} className="flex items-center justify-between py-2 px-3 bg-white rounded-[14px] shadow-[0_2px_10px_-4px_rgba(0,0,0,0.04)] border border-slate-50 group hover:-translate-y-0.5 hover:shadow-[0_8px_20px_-5px_rgba(0,0,0,0.08)] transition-all duration-300">
                   <div className="flex items-center gap-2.5">
@@ -37,21 +40,22 @@ export default function AIInsightsPage() {
                     </div>
                   </div>
                   <div className="relative flex items-center justify-center w-4 h-4 mr-0.5">
-                     <div className="absolute w-[12px] h-[12px] bg-[#2ed89b]/40 rounded-full blur-[2px]"></div>
-                     <div className="w-[6px] h-[6px] bg-[#2ed89b] rounded-full shadow-[0_0_6px_#2ed89b] z-10 animate-pulse"></div>
+                    <div className="absolute w-[12px] h-[12px] bg-[#2ed89b]/40 rounded-full blur-[2px]"></div>
+                    <div className="w-[6px] h-[6px] bg-[#2ed89b] rounded-full shadow-[0_0_6px_#2ed89b] z-10 animate-pulse"></div>
                   </div>
                 </div>
               ))}
             </div>
           </div>
 
-          <div className="bg-slate-50 rounded-2xl border border-slate-100 p-5 shadow-sm mt-6">
+          <div className="bg-slate-50 rounded-2xl border border-slate-100 p-5 shadow-sm">
             <h3 className="font-bold text-slate-700 mb-2 text-[13px]">💡 Astuces</h3>
             <p className="text-xs text-slate-500 leading-relaxed font-semibold italic">
               Essayez de demander : &quot;Quels sont les risques majeurs sur ce sprint ?&quot; ou &quot;Peux-tu challenger mon planning pour finir vendredi ?&quot;
             </p>
           </div>
         </div>
+
       </div>
     </div>
   )

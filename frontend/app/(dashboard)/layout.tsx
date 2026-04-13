@@ -37,7 +37,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   ]
 
   return (
-    <div className="flex h-screen bg-nexus-room font-sans overflow-hidden relative">
+    <div className="flex h-screen w-screen bg-nexus-room font-sans overflow-hidden relative">
       {/* 3D Orbs/Particles purely aesthetic */}
       <div className="absolute bottom-10 right-10 w-32 h-32 bg-gradient-to-br from-[#00BCD4] to-[#8B5CF6] rounded-full blur-[80px] opacity-40 mix-blend-screen pointer-events-none" />
       <div className="absolute top-1/4 left-1/4 w-48 h-48 bg-gradient-to-br from-[#F43F5E] to-transparent rounded-full blur-[100px] opacity-30 mix-blend-screen pointer-events-none" />
@@ -135,12 +135,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         )}
       </nav>
 
-      <div className="p-4 mt-auto">
+      <div className="p-4 mt-auto space-y-4">
+
         <button
           onClick={() => { logout(); router.push("/login") }}
           className={`flex items-center gap-3 w-full p-4 rounded-[1.5rem] transition-all duration-300 group
             ${isCollapsed 
-              ? 'justify-center bg-rose-500/10 border-rose-500/20 text-rose-500 hover:bg-rose-500 hover:text-white' 
+              ? 'justify-center bg-rose-500/10 border-rose-500/20 text-rose-500 hover:bg-rose-500 hover:text-white shadow-[0_0_15px_rgba(244,63,94,0.2)]' 
               : 'bg-white/40 backdrop-blur-md border border-slate-200/50 text-slate-600 hover:border-rose-400/50 hover:bg-rose-50/50 hover:text-rose-600 shadow-sm'}`}
           title="Se déconnecter"
         >
@@ -152,8 +153,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </div>
     </div>
 
-    <div className="flex-1 flex flex-col overflow-hidden relative z-20">
-      <header className="h-24 nexus-glass flex items-center justify-between px-8 relative shrink-0 rounded-b-3xl mx-4 mt-4">
+    <div className="flex-1 h-full overflow-hidden relative z-20">
+      <header className="absolute top-0 left-0 right-0 h-16 z-50 nexus-glass border-b border-white/20 flex items-center justify-between px-8">
         <div className="flex items-center gap-4">
           <button
             onClick={() => setIsCollapsed(!isCollapsed)}
@@ -163,28 +164,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </button>
         </div>
 
-        {/* RESTORING FIRST VERSION OF BADGES (SIMPLE) */}
+        {/* Middle Area */}
         <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-6">
-           <div className="flex flex-col items-center">
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 opacity-80">Badges</span>
-              <div className="flex items-center gap-3">
-                 {[
-                    { icon: <Rocket size={14} />, color: 'bg-rose-100', glow: 'shadow-[0_0_12px_rgba(251,207,232,0.4)]', label: 'Starter', iconColor: 'text-rose-500' },
-                    { icon: <Flame size={14} />, color: 'bg-orange-100', glow: 'shadow-[0_0_12px_rgba(255,237,213,0.4)]', label: 'Machine', iconColor: 'text-orange-500' },
-                    { icon: <Shield size={14} />, color: 'bg-sky-100', glow: 'shadow-[0_0_12px_rgba(224,242,254,0.4)]', label: 'Architect', iconColor: 'text-sky-500' }
-                 ].map((badge, idx) => (
-                    <div key={idx} className="group relative flex flex-col items-center">
-                       <div className={`w-8 h-8 rounded-full flex items-center justify-center ${badge.iconColor} ${badge.color} ${badge.glow} border-2 border-white/90 transform hover:scale-110 transition-all cursor-help`}>
-                          {badge.icon}
-                       </div>
-                       {/* Tooltip on hover */}
-                       <div className="absolute top-full mt-2 bg-slate-800 text-white text-[9px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">
-                          {badge.label}
-                       </div>
-                    </div>
-                 ))}
-              </div>
-           </div>
+           {/* Badges moved to Leaderboard as requested */}
         </div>
         
         <div className="flex items-center gap-4 ml-auto">
@@ -241,11 +223,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
         </div>
       </header>
-      <main className="flex-1 overflow-auto relative p-4 md:p-8">
+      <main className="absolute top-16 left-0 right-0 bottom-0 overflow-hidden flex flex-col z-0">
         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-gradient-to-br from-[#00BCD4]/10 to-transparent rounded-full blur-3xl pointer-events-none -z-10 animate-float"></div>
         <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-gradient-to-tr from-[#00BCD4]/5 to-transparent rounded-full blur-3xl pointer-events-none -z-10 animate-pulse"></div>
         
-        <div className="w-full h-full relative z-10">
+        <div className="flex-1 h-full min-h-0 relative z-10 overflow-hidden">
           <AnimatePresence mode="wait">
             <motion.div
               key={pathname}
@@ -253,7 +235,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
               exit={{ opacity: 0, y: -15, filter: "blur(4px)" }}
               transition={{ duration: 0.4, ease: "backOut" }}
-              className="h-full"
+              className={`h-full flex flex-col ${pathname === "/ai-insights" ? "overflow-hidden" : "overflow-y-auto custom-scrollbar-visible"}`}
             >
               {children}
             </motion.div>

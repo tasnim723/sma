@@ -115,3 +115,22 @@ async def delete_member(member_id: str, current_user: dict = Depends(check_manag
     await log_activity(db, "MEMBER_DELETED", member_id, "Deleted Member", current_user)
     
     return {"message": "Member removed successfully and all associations cleaned up"}
+
+@router.get("/leaderboard")
+async def get_leaderboard(current_user: dict = Depends(get_current_user)):
+    db = get_database()
+    # Fetch top 10 users by weekly_xp (primary) and level (secondary)
+    users = await db["users"].find().sort([("weekly_xp", -1), ("level", -1)]).to_list(10)
+    
+    result = []
+    for user in users:
+        result.append({
+            "id": str(user["_id"]),
+            "full_name": user.get("full_name"),
+            "level": user.get("level", 1),
+            "xp": user.get("xp", 0),
+            "weekly_xp": user.get("weekly_xp", 0),
+            "role": user.get("role"),
+            "is_me": str(user["_id"]) == str(current_user["_id"])
+        })
+    return result
