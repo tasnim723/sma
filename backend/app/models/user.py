@@ -12,6 +12,11 @@ class UserBase(BaseModel):
     cv_url: Optional[str] = ""
     linkedin_url: Optional[str] = ""
     github_url: Optional[str] = ""
+    google_id: Optional[str] = None
+    auth_provider: str = "local"  # "local" ou "google"
+    avatar_url: Optional[str] = ""
+    grade: Optional[str] = ""  # Junior, Senior, Expert
+    experience: Optional[str] = ""  # Description expérience
     xp: int = 0
     weekly_xp: int = 0
     level: int = 1
@@ -36,3 +41,9 @@ class UserUpdate(BaseModel):
     role: Optional[str] = None
     position: Optional[str] = None
     skills: Optional[List[str]] = None
+    grade: Optional[str] = None
+    experience: Optional[str] = None
+    github_url: Optional[str] = None
+    linkedin_url: Optional[str] = None
+    cv_url: Optional[str] = None
+    phone_number: Optional[str] = None
