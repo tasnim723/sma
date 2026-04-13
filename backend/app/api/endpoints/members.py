@@ -9,24 +9,6 @@ from app.services.activity_log import log_activity
 
 router = APIRouter()
 
-@router.patch("/me")
-async def update_my_profile(member_in: UserUpdate, current_user: dict = Depends(get_current_user)):
-    """Permet à l'utilisateur connecté de mettre à jour son propre profil."""
-    db = get_database()
-    update_data = {k: v for k, v in member_in.model_dump().items() if v is not None}
-    if not update_data:
-        return {"message": "Rien à mettre à jour"}
-    await db["users"].update_one(
-        {"_id": current_user["_id"]},
-        {"$set": update_data}
-    )
-    updated_user = await db["users"].find_one({"_id": current_user["_id"]})
-    if updated_user:
-        updated_user["id"] = str(updated_user.pop("_id"))
-        updated_user.pop("hashed_password", None)
-        return updated_user
-    return {"message": "Profil mis à jour"}
-
 @router.get("/", response_model=List[UserResponse])
 async def list_members(current_user: dict = Depends(get_current_user)):
     db = get_database()
@@ -133,3 +115,22 @@ async def delete_member(member_id: str, current_user: dict = Depends(check_manag
     await log_activity(db, "MEMBER_DELETED", member_id, "Deleted Member", current_user)
     
     return {"message": "Member removed successfully and all associations cleaned up"}
+
+@router.get("/leaderboard")
+async def get_leaderboard(current_user: dict = Depends(get_current_user)):
+    db = get_database()
+    # Fetch top 10 users by weekly_xp (primary) and level (secondary)
+    users = await db["users"].find().sort([("weekly_xp", -1), ("level", -1)]).to_list(10)
+    
+    result = []
+    for user in users:
+        result.append({
+            "id": str(user["_id"]),
+            "full_name": user.get("full_name"),
+            "level": user.get("level", 1),
+            "xp": user.get("xp", 0),
+            "weekly_xp": user.get("weekly_xp", 0),
+            "role": user.get("role"),
+            "is_me": str(user["_id"]) == str(current_user["_id"])
+        })
+    return result

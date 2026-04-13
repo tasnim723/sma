@@ -1,17 +1,27 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Users, UserPlus, Shield, Settings, Trash2, LayoutGrid, List, Eye, Pencil, UserMinus } from "lucide-react"
+import { Users, LayoutGrid, Network, Plus, Shield, Pencil, Trash2, Eye, Flame, Activity, Crown, Lock, ShieldCheck, Star, UserMinus, AlertCircle } from "lucide-react"
 import axios from "axios"
 import { useAuthStore } from "@/lib/store"
-import TeamOrganigramme from "@/components/team/TeamOrganigramme"
 import { motion, AnimatePresence } from "framer-motion"
 
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
+
+const NeonWrapper = ({ children, className = "", color = "cyan" }: any) => {
+  const glowClass = `glow-${color}`;
+  const dotColor = color === 'yellow' ? 'bg-amber-500' : color === 'red' ? 'bg-rose-500' : color === 'green' ? 'bg-emerald-500' : 'bg-[#00BCD4]';
+
+  return (
+    <div className={`relative rounded-3xl transition-all duration-300 group/neon ${glowClass} ${className}`}>
+      <div className="relative z-10 w-full h-full bg-white/70 backdrop-blur-xl rounded-[inherit]">
+        {children}
+      </div>
+    </div>
+  );
+}
 
 interface Member {
   id: string
@@ -19,69 +29,16 @@ interface Member {
   email: string
   role: string
   position?: string
-  phone_number?: string
   skills?: string[]
-  cv_url?: string
-  linkedin_url?: string
-  github_url?: string
 }
 
 export default function TeamPage() {
   const [members, setMembers] = useState<Member[]>([])
   const [loading, setLoading] = useState(true)
-  const [view, setView] = useState<'table' | 'org'>('org')
   const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const [selectedMember, setSelectedMember] = useState<Member | null>(null)
-  const [memberDetails, setMemberDetails] = useState<{tasks: any[]} | null>(null)
-  const [isDetailsOpen, setIsDetailsOpen] = useState(false)
-  const [loadingDetails, setLoadingDetails] = useState(false)
-
-  const [memberToDelete, setMemberToDelete] = useState<Member | null>(null)
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
-  
-  const [memberToEdit, setMemberToEdit] = useState<Member | null>(null)
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
-  const [editForm, setEditForm] = useState({
-    first_name: "",
-    last_name: "",
-    role: "",
-    grade: "",
-    status: "Actif",
-    skills: ""
-  })
-
-  const [step, setStep] = useState(1)
-  const [newDev, setNewDev] = useState({ 
-    first_name: "Jean",
-    last_name: "Dupont",
-    email: "jean@pfe.com", 
-    phone: "+33 6...",
-    role: "Frontend Dev", 
-    grade: "Junior",
-    skills: [] as string[],
-    experience: 2,
-    availability: "Disponible",
-    linkedin: "",
-    github: "",
-    notes: "",
-    cv_file: null as File | null,
-    cv_filename: ""
-  })
-  
-  const [customSkill, setCustomSkill] = useState("")
-  const predefinedSkills = ["React", "Vue", "Angular", "Node.js", "Python", "FastAPI", "Django", "PostgreSQL", "MongoDB", "Docker", "AWS", "Git", "Figma", "TypeScript"]
-  
-  const toggleSkill = (skill: string) => {
-    setNewDev(prev => ({
-      ...prev,
-      skills: prev.skills.includes(skill) 
-        ? prev.skills.filter(s => s !== skill) 
-        : [...prev.skills, skill]
-    }))
-  }
+  const [viewMode, setViewMode] = useState<'pod' | 'cards'>('pod')
 
   const token = useAuthStore(state => state.token)
-  const currentUser = useAuthStore(state => state.user)
 
   const fetchMembers = async () => {
     try {
@@ -90,25 +47,96 @@ export default function TeamPage() {
       })
       setMembers(res.data)
     } catch (err) {
-      console.error("Failed to fetch members", err)
+      console.error(err)
     } finally {
       setLoading(false)
     }
   }
 
-  const fetchMemberDetails = async (member: Member) => {
-    setSelectedMember(member)
-    setIsDetailsOpen(true)
-    setLoadingDetails(true)
+  const [wizardStep, setWizardStep] = useState(1)
+  const defaultForm = {
+    prenom: "",
+    nom: "",
+    email: "",
+    telephone: "",
+    role: "Frontend Dev",
+    grade: "Junior",
+    internalRole: "TEAM_MEMBER",
+    competences: [] as string[],
+    experience: 2,
+    disponibilite: "Disponible",
+    linkedin: "",
+    github: "",
+    notes: "",
+    password: "password123"
+  }
+  const [formData, setFormData] = useState(defaultForm)
+  const [isEdit, setIsEdit] = useState(false)
+  const [editId, setEditId] = useState("")
+
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false)
+  const [selectedMember, setSelectedMember] = useState<Member | null>(null)
+
+  const handleAddMember = async () => {
     try {
-      const res = await axios.get(`http://localhost:8000/api/members/${member.id}/details`, {
-        headers: { Authorization: `Bearer ${token}` }
+      const payload = {
+        email: formData.email,
+        full_name: `${formData.prenom} ${formData.nom}`.trim(),
+        phone_number: formData.telephone,
+        position: `${formData.role} - ${formData.grade}`,
+        role: formData.internalRole,
+        skills: formData.competences,
+        linkedin_url: formData.linkedin,
+        github_url: formData.github,
+        xp: formData.experience * 100, // example xp scale
+        password: formData.password
+      }
+      await axios.post("http://localhost:8000/api/members/", payload, {
+        headers: { Authorization: `Bearer ${token || ""}` }
       })
-      setMemberDetails(res.data)
+      fetchMembers()
+      setIsDialogOpen(false)
+      setWizardStep(1)
+      setFormData(defaultForm)
     } catch (err) {
-      console.error("Failed to fetch member details", err)
-    } finally {
-      setLoadingDetails(false)
+      console.error(err)
+    }
+  }
+
+  const handleUpdateMember = async () => {
+    try {
+      const payload = {
+        email: formData.email,
+        full_name: `${formData.prenom} ${formData.nom}`.trim(),
+        phone_number: formData.telephone,
+        position: `${formData.role} - ${formData.grade}`,
+        role: formData.internalRole,
+        skills: formData.competences,
+        linkedin_url: formData.linkedin,
+        github_url: formData.github,
+      }
+      await axios.put(`http://localhost:8000/api/members/${editId}`, payload, {
+        headers: { Authorization: `Bearer ${token || ""}` }
+      })
+      fetchMembers()
+      setIsDialogOpen(false)
+      setIsEdit(false)
+      setWizardStep(1)
+      setFormData(defaultForm)
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  const handleDeleteMember = async (id: string) => {
+    try {
+      await axios.delete(`http://localhost:8000/api/members/${id}`, {
+        headers: { Authorization: `Bearer ${token || ""}` }
+      })
+      fetchMembers()
+    } catch (err) {
+      console.error(err)
     }
   }
 
@@ -116,722 +144,585 @@ export default function TeamPage() {
     if (token) fetchMembers()
   }, [token])
 
-  const handleCreateMember = async () => {
-    try {
-      let cv_url = ""
-      if (newDev.cv_file) {
-        const formData = new FormData()
-        formData.append("file", newDev.cv_file)
-        const uploadRes = await axios.post("http://localhost:8000/api/upload/cv", formData, {
-          headers: { 
-            "Content-Type": "multipart/form-data",
-            Authorization: `Bearer ${token || ""}`
-          }
-        })
-        cv_url = uploadRes.data.url
-      }
-
-      const payload = {
-        full_name: `${newDev.first_name} ${newDev.last_name}`,
-        email: newDev.email,
-        role: "TEAM_MEMBER",
-        position: `${newDev.role} - ${newDev.grade}`,
-        phone_number: newDev.phone,
-        password: "password123",
-        skills: newDev.skills,
-        linkedin_url: newDev.linkedin,
-        github_url: newDev.github,
-        cv_url: cv_url
-      }
-      const res = await axios.post("http://localhost:8000/api/members/", payload, {
-        headers: { Authorization: `Bearer ${token || ""}` }
-      })
-      setIsDialogOpen(false)
-      setStep(1)
-      setNewDev({ ...newDev, skills: [] }) 
-      fetchMembers()
-    } catch (err) {
-      alert("Échec de l'ajout du membre")
-    }
-  }
-
-  const confirmDelete = (member: Member) => {
-    setMemberToDelete(member)
-    setIsDeleteDialogOpen(true)
-  }
-
-  const handleDelete = async () => {
-    if (!memberToDelete) return;
-    try {
-      await axios.delete(`http://localhost:8000/api/members/${memberToDelete.id}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-      setMembers(members.filter(m => m.id !== memberToDelete.id))
-      setIsDeleteDialogOpen(false)
-      setMemberToDelete(null)
-    } catch (err) {
-      alert("Échec de la suppression du membre. Assurez-vous d'être Chef de Projet.")
-    }
-  }
-
-  const getCharge = (name: string) => {
-    if (!name) return { label: 'Modéré', color: 'text-[#3b82f6]', barColor: 'bg-[#3b82f6]', width: 'w-1/2', bg: 'bg-[#eff6ff]' };
-    const l = name.length;
-    if (l % 3 === 0) return { label: 'Libre', color: 'text-[#10b981]', barColor: 'bg-[#10b981]', width: 'w-1/3', bg: 'bg-[#ecfdf5]' };
-    if (l % 3 === 1) return { label: 'Élevé', color: 'text-[#f59e0b]', barColor: 'bg-[#f59e0b]', width: 'w-[80%]', bg: 'bg-[#fffbeb]' };
-    return { label: 'Modéré', color: 'text-[#3b82f6]', barColor: 'bg-[#3b82f6]', width: 'w-1/2', bg: 'bg-[#eff6ff]' };
-  }
-
-  const getLevel = (position: string) => {
-    if (!position) return "Mid"
-    const p = position.toLowerCase()
-    if (p.includes("senior") || p.includes("lead") || p.includes("manager")) return "Senior"
-    if (p.includes("junior")) return "Junior"
-    return "Mid"
-  }
-
-  const openEditDialog = (member: Member) => {
-    const parts = member.full_name ? member.full_name.split(' ') : ["", ""]
-    setMemberToEdit(member)
-    setEditForm({
-      first_name: parts[0] || "",
-      last_name: parts.slice(1).join(" ") || "",
-      role: member.position ? member.position.split(' - ')[0] : (member.role || "Frontend Dev"),
-      grade: getLevel(member.position || ""),
-      status: "Actif",
-      skills: (member.skills || []).join(", ")
-    })
-    setIsEditDialogOpen(true)
-  }
-
-  const handleUpdateMember = async () => {
-    if (!memberToEdit) return;
-    try {
-      const position = `${editForm.role} - ${editForm.grade}`;
-      const payload = {
-        full_name: `${editForm.first_name} ${editForm.last_name}`,
-        role: "TEAM_MEMBER",
-        position: position,
-        skills: editForm.skills.split(",").map(s => s.trim()).filter(Boolean)
-      }
-      await axios.put(`http://localhost:8000/api/members/${memberToEdit.id}`, payload, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-      
-      setIsEditDialogOpen(false)
-      setMemberToEdit(null)
-      fetchMembers()
-    } catch (err) {
-      alert("Échec de la mise à jour du membre.")
-    }
+  const getAvatar = (name: string, position?: string) => {
+    if (!name) return "/boy-removebg-preview.png"
+    if (name.toLowerCase().includes('alice') || name.toLowerCase().includes('senior manager')) return "/girl-removebg-preview.png"
+    const isFemale = name.toLowerCase().includes('charlie') || name.toLowerCase().endsWith('a') || name.toLowerCase().endsWith('e')
+    return isFemale ? "/girl-removebg-preview.png" : "/boy-removebg-preview.png"
   }
 
   if (loading) return (
-    <div className="flex items-center justify-center h-64">
-      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+    <div className="flex items-center justify-center h-screen bg-[#f1f7fa]">
+      <div className="w-10 h-10 border-4 border-[#00BCD4]/20 border-t-[#00BCD4] rounded-full animate-spin" />
     </div>
   )
 
+  // Grouping for Pod View
+  const leads = members.filter(m => m.role === 'TEAM_LEAD')
+  const others = members.filter(m => m.role !== 'TEAM_LEAD' && !m.full_name.toLowerCase().includes('manager'))
+
   return (
-    <div className="bg-[#f8fafc] min-h-screen pb-20">
-      <div className="px-6 md:px-10 py-8 max-w-[1440px] mx-auto">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h2 className="text-[#94a3b8] text-[12px] font-[800] uppercase tracking-widest mb-1">Vue Effectif & Surcharge</h2>
-            <h1 className="text-[28px] font-[900] text-[#1e293b] tracking-tight">Gestion de l'Équipe</h1>
-          </div>
-          
-          {currentUser?.role === 'PROJECT_MANAGER' && (
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-              <DialogTrigger render={
-                <button className="bg-[#2ebccb] hover:bg-[#28aab8] text-white px-5 py-2.5 rounded-full text-sm font-bold transition-all flex items-center gap-2 shadow-sm">
-                  <span className="text-lg leading-none font-normal relative bottom-[1px]">+</span> Ajouter un Développeur
-                </button>
-              } />
-              <DialogContent className="sm:max-w-[550px] p-8 rounded-3xl border-none shadow-2xl">
-                <DialogHeader className="mb-0">
-                  <DialogTitle className="text-[22px] font-[800] text-[#1f2937]">Ajouter un Développeur</DialogTitle>
-                </DialogHeader>
-                
-                {/* Stepper */}
-                <div className="flex gap-2 mt-4 mb-8">
-                  <div className={`h-1.5 flex-1 rounded-full ${step >= 1 ? 'bg-[#00b5c5]' : 'bg-gray-100'}`}></div>
-                  <div className={`h-1.5 flex-1 rounded-full ${step >= 2 ? 'bg-[#00b5c5]' : 'bg-gray-100'}`}></div>
-                  <div className={`h-1.5 flex-1 rounded-full ${step >= 3 ? 'bg-[#00b5c5]' : 'bg-gray-100'}`}></div>
-                </div>
-
-                {step === 1 && (
-                  <div className="animate-in fade-in slide-in-from-right-4 duration-300">
-                    <h3 className="font-[800] text-[#1f2937] text-[15px] mb-5">Étape 1 : Infos personnelles</h3>
-                    <div className="grid grid-cols-2 gap-x-4 gap-y-5">
-                      <div className="space-y-1.5">
-                        <Label className="text-[12px] font-[700] text-[#374151] uppercase">Prénom</Label>
-                        <Input 
-                          value={newDev.first_name} onChange={e => setNewDev({...newDev, first_name: e.target.value})}
-                          placeholder="Jean" className="rounded-xl border-gray-200 focus:ring-[#00b5c5] h-11 text-[13px]" />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-[12px] font-[700] text-[#374151] uppercase">Nom</Label>
-                        <Input 
-                          value={newDev.last_name} onChange={e => setNewDev({...newDev, last_name: e.target.value})}
-                          placeholder="Dupont" className="rounded-xl border-gray-200 focus:ring-[#00b5c5] h-11 text-[13px]" />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-[12px] font-[700] text-[#374151] uppercase">Email professionnel</Label>
-                        <Input 
-                          value={newDev.email} onChange={e => setNewDev({...newDev, email: e.target.value})}
-                          placeholder="jean@pfe.com" className="rounded-xl border-gray-200 focus:ring-[#00b5c5] h-11 text-[13px]" />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-[12px] font-[700] text-[#374151] uppercase">Téléphone</Label>
-                        <Input 
-                          value={newDev.phone} onChange={e => setNewDev({...newDev, phone: e.target.value})}
-                          placeholder="+33 6..." className="rounded-xl border-gray-200 focus:ring-[#00b5c5] h-11 text-[13px]" />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-[12px] font-[700] text-[#374151] uppercase">Rôle</Label>
-                        <Select value={newDev.role} onValueChange={v => setNewDev({...newDev, role: v || ""})}>
-                          <SelectTrigger className="rounded-xl border-gray-200 focus:ring-[#00b5c5] h-11 text-[13px]"><SelectValue /></SelectTrigger>
-                          <SelectContent><SelectItem value="Frontend Dev">Frontend Dev</SelectItem><SelectItem value="Backend Dev">Backend Dev</SelectItem><SelectItem value="Fullstack Dev">Fullstack Dev</SelectItem><SelectItem value="Data Scientist">Data Scientist</SelectItem></SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-[12px] font-[700] text-[#374151] uppercase">Grade</Label>
-                        <Select value={newDev.grade} onValueChange={v => setNewDev({...newDev, grade: v || ""})}>
-                          <SelectTrigger className="rounded-xl border-gray-200 focus:ring-[#00b5c5] h-11 text-[13px]"><SelectValue /></SelectTrigger>
-                          <SelectContent><SelectItem value="Junior">Junior</SelectItem><SelectItem value="Mid">Mid</SelectItem><SelectItem value="Senior">Senior</SelectItem></SelectContent>
-                        </Select>
-                      </div>
-                      <div className="col-span-2 space-y-1.5 mt-1">
-                        <Label className="text-[12px] font-[700] text-[#374151] uppercase">Photo de profil</Label>
-                        <div className="border border-dashed border-gray-300 rounded-xl h-12 flex items-center justify-center text-[13px] font-[600] text-[#6b7280] cursor-pointer hover:bg-gray-50 transition-colors">
-                          Téléverser une image
-                        </div>
-                      </div>
-                    </div>
-                    <div className="mt-8">
-                       <Button onClick={() => setStep(2)} className="w-full h-11 bg-[#00b5c5] hover:bg-[#00a3b3] rounded-xl font-[700] text-[14px] text-white transition-colors duration-200 shadow-sm border-none">Suivant</Button>
-                    </div>
-                  </div>
-                )}
-
-                {step === 2 && (
-                  <div className="animate-in fade-in slide-in-from-right-4 duration-300">
-                    <h3 className="font-[800] text-[#1f2937] text-[15px] mb-5">Étape 2 : Compétences</h3>
-                    <div className="space-y-5">
-                      <div className="space-y-2">
-                        <Label className="text-[12px] font-[700] text-[#374151] uppercase">Ajouter une compétence</Label>
-                        <Input 
-                          placeholder="Entrez une compétence (Ex: React)..." 
-                          value={customSkill}
-                          onChange={e => setCustomSkill(e.target.value)}
-                          onKeyDown={e => {
-                            if (e.key === 'Enter' && customSkill.trim()) {
-                              e.preventDefault()
-                              toggleSkill(customSkill.trim())
-                              setCustomSkill("")
-                            }
-                          }}
-                          className="rounded-xl border-gray-200 focus:ring-[#00b5c5] h-11 text-[13px]" 
-                        />
-                        <div className="flex flex-wrap gap-2 pt-3">
-                          {predefinedSkills.map(s => {
-                             const isSel = newDev.skills.includes(s);
-                             return (
-                               <button key={s} onClick={() => toggleSkill(s)} 
-                                  className={`px-3 py-1.5 rounded-full text-[11px] font-[700] transition-colors border shadow-xs ${isSel ? 'bg-[#f0fcfd] text-[#00b5c5] border-[#00b5c5]' : 'bg-white text-[#6b7280] border-gray-200 hover:border-[#00b5c5]'}`}>
-                                 {s}
-                               </button>
-                             )
-                          })}
-                        </div>
-                      </div>
-                      
-                      <div className="space-y-3 pt-2">
-                        <Label className="text-[12px] font-[700] text-[#374151] uppercase">Expérience ({newDev.experience} ans)</Label>
-                        <div className="relative h-[6px] bg-gray-200 rounded-full w-full mt-2">
-                           <div className="absolute top-0 left-0 h-full bg-[#1d4ed8] rounded-full" style={{ width: `${(newDev.experience/10)*100}%` }}></div>
-                           <input type="range" min="0" max="10" value={newDev.experience} onChange={e => setNewDev({...newDev, experience: parseInt(e.target.value)})}
-                              className="absolute top-0 left-0 w-full h-full opacity-0 cursor-pointer" />
-                           <div className="absolute top-1/2 -mt-[8px] w-4 h-4 bg-[#1d4ed8] rounded-full shadow-md border-2 border-white pointer-events-none" style={{ left: `calc(${(newDev.experience/10)*100}% - 8px)` }}></div>
-                        </div>
-                      </div>
-
-                      <div className="p-4 border border-gray-100 rounded-xl bg-gray-50 flex items-center justify-between mt-4">
-                        <Label className="text-[13px] font-[700] text-[#1f2937] m-0 uppercase">Disponibilité Actuelle</Label>
-                        <Select value={newDev.availability} onValueChange={v => setNewDev({...newDev, availability: v || ""})}>
-                          <SelectTrigger className="w-32 bg-white rounded-lg border-gray-200 h-9 text-[12px] font-[600] text-[#374151] shadow-sm"><SelectValue /></SelectTrigger>
-                          <SelectContent><SelectItem value="Disponible">Disponible</SelectItem><SelectItem value="Occupé">Occupé</SelectItem></SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                    
-                    <div className="flex gap-3 mt-8">
-                       <Button onClick={() => setStep(1)} variant="outline" className="w-[120px] h-11 border-gray-200 hover:bg-gray-50 rounded-xl font-[700] text-[14px] text-[#4b5563]">Retour</Button>
-                       <Button onClick={() => setStep(3)} className="flex-1 h-11 bg-[#00b5c5] hover:bg-[#00a3b3] rounded-xl font-[700] text-[14px] text-white border-none shadow-sm transition-colors duration-200">Suivant</Button>
-                    </div>
-                  </div>
-                )}
-
-                {step === 3 && (
-                  <div className="animate-in fade-in slide-in-from-right-4 duration-300">
-                    <h3 className="font-[800] text-[#1f2937] text-[15px] mb-5">Étape 3 : Documents & Liens</h3>
-                    <div className="space-y-5">
-                      <div className="space-y-2">
-                        <label className="border border-dashed border-gray-300 rounded-xl h-[60px] flex items-center justify-center gap-2 text-[13px] font-[600] text-[#6b7280] cursor-pointer hover:bg-gray-50 transition-colors">
-                          <input type="file" className="hidden" accept=".pdf" onChange={(e) => {
-                            if (e.target.files && e.target.files[0]) {
-                              setNewDev({...newDev, cv_file: e.target.files[0], cv_filename: e.target.files[0].name})
-                            }
-                          }} />
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2-2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>
-                          Téléverser le CV (PDF)
-                        </label>
-                        {newDev.cv_filename && (
-                          <p className="text-[12px] font-[600] text-[#10b981] flex items-center gap-1.5 mt-2">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                            {newDev.cv_filename}
-                          </p>
-                        )}
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-1.5">
-                          <Label className="text-[12px] font-[700] text-[#374151] uppercase">LinkedIn</Label>
-                          <Input 
-                            value={newDev.linkedin} onChange={e => setNewDev({...newDev, linkedin: e.target.value})}
-                            placeholder="https://linkedin.com/in/..." className="rounded-xl border-gray-200 focus:ring-[#00b5c5] h-11 text-[13px] bg-gray-50/50" />
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label className="text-[12px] font-[700] text-[#374151] uppercase">GitHub</Label>
-                          <Input 
-                            value={newDev.github} onChange={e => setNewDev({...newDev, github: e.target.value})}
-                            placeholder="https://github.com/..." className="rounded-xl border-gray-200 focus:ring-[#00b5c5] h-11 text-[13px] bg-gray-50/50" />
-                        </div>
-                      </div>
-
-                      <div className="space-y-1.5">
-                        <Label className="text-[12px] font-[700] text-[#374151] uppercase">Notes et commentaires</Label>
-                        <textarea 
-                          value={newDev.notes} onChange={e => setNewDev({...newDev, notes: e.target.value})}
-                          placeholder="Infos utiles..." 
-                          className="w-full rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#00b5c5] p-3 text-[13px] min-h-[90px] resize-none text-gray-700 bg-white" 
-                        ></textarea>
-                      </div>
-                    </div>
-                    
-                    <div className="flex gap-3 mt-8">
-                       <Button onClick={() => setStep(2)} variant="outline" className="w-[120px] h-11 border-gray-200 hover:bg-gray-50 rounded-xl font-[700] text-[14px] text-[#4b5563]">Retour</Button>
-                       <Button onClick={handleCreateMember} className="flex-1 h-11 bg-[#00b5c5] hover:bg-[#00a3b3] rounded-xl font-[700] text-[14px] text-white flex items-center justify-center gap-2 border-none shadow-sm transition-colors duration-200">
-                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                         Ajouter à l'équipe
-                       </Button>
-                    </div>
-                  </div>
-                )}
-              </DialogContent>
-            </Dialog>
-          )}
-        </div>
-
-        <div className="w-full">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="border-b-[1.5px] border-gray-100">
-                <th className="pb-4 font-[800] text-[#a1a1aa] text-[11px] uppercase tracking-wider w-[22%] pl-6">Membre</th>
-                <th className="pb-4 font-[800] text-[#a1a1aa] text-[11px] uppercase tracking-wider w-[22%]">Rôle / Spécialité</th>
-                <th className="pb-4 font-[800] text-[#a1a1aa] text-[11px] uppercase tracking-wider w-[24%]">Compétences</th>
-                <th className="pb-4 font-[800] text-[#a1a1aa] text-[11px] uppercase tracking-wider w-[12%]">Charge</th>
-                <th className="pb-4 font-[800] text-[#a1a1aa] text-[11px] uppercase tracking-wider w-[10%]">Statut</th>
-                <th className="pb-4 font-[800] text-[#a1a1aa] text-[11px] uppercase tracking-wider w-[10%] text-right pr-6">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {members.length === 0 ? (
-                <tr><td colSpan={6} className="text-center py-8 text-slate-500">Aucun membre trouvé</td></tr>
-              ) : (
-                members.map((member) => {
-                  const charge = getCharge(member.full_name)
-                  const level = getLevel(member.position || "")
-                  const initials = member.full_name ? member.full_name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : '?'
-                  
-                  return (
-                    <motion.tr 
-                      key={member.id} 
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: members.indexOf(member) * 0.08, duration: 0.4, ease: "easeOut" }}
-                      className="border-b-[1.5px] border-gray-50 hover:bg-gray-50/40 transition-colors group"
-                    >
-                      <td className="py-5 pl-6">
-                        <div className="flex items-center gap-4">
-                          <div className="w-[42px] h-[42px] rounded-full bg-[#f0f9fa] text-[#2ebccb] flex items-center justify-center font-[800] text-[15px] shrink-0">
-                            {initials}
-                          </div>
-                          <span className="font-[800] text-[#4b5563] text-[15px]">
-                            {member.full_name || "Utilisateur"}
-                          </span>
-                        </div>
-                      </td>
-                      
-                      <td className="py-5">
-                        <div className="flex flex-col">
-                          <span className="font-[800] text-[#4b5563] text-[14px]">
-                            {member.position || "Staff"}
-                          </span>
-                          <span className="text-[#a1a1aa] text-[12.5px] font-[600] mt-0.5">
-                            {level}
-                          </span>
-                        </div>
-                      </td>
-                      
-                      <td className="py-5">
-                        <div className="flex gap-2 flex-wrap pr-4">
-                          {(member.skills?.length || 0) > 0 ? member.skills?.slice(0,4)?.map((skill, i) => (
-                            <span key={i} className="bg-[#f4f4f5] text-[#71717a] px-3 py-1 rounded-[8px] text-[11.5px] font-[800] shadow-sm">
-                              {skill}
-                            </span>
-                          )) : (
-                            <span className="text-slate-300 italic text-[11px]">Non renseignées</span>
-                          )}
-                        </div>
-                      </td>
-                      
-                      <td className="py-5">
-                        <div className="flex flex-col w-[85px]">
-                          <span className={`${charge.color} text-[12px] font-[800] mb-2`}>
-                            {charge.label}
-                          </span>
-                          <div className={`h-1.5 w-full rounded-full ${charge.bg}`}>
-                            <div className={`h-full rounded-full ${charge.barColor} ${charge.width}`}></div>
-                          </div>
-                        </div>
-                      </td>
-
-                      <td className="py-5">
-                        <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#ecfdf4] border-[1.5px] border-[#d1fae5]">
-                          <div className="w-1.5 h-1.5 rounded-full bg-[#10b981]"></div>
-                          <span className="text-[#10b981] text-[11px] font-[800] uppercase tracking-wide">Actif</span>
-                        </div>
-                      </td>
-                      
-                      <td className="py-5 text-right pr-6">
-                        <div className="flex items-center justify-end gap-2.5">
-                          <button 
-                            onClick={() => fetchMemberDetails(member)}
-                            className="w-[34px] h-[34px] rounded-full border-[1.5px] border-gray-100 flex items-center justify-center text-gray-400 hover:bg-gray-50 hover:text-gray-600 transition-colors"
-                          >
-                            <Eye size={15} strokeWidth={2.5} />
-                          </button>
-                          
-                          {currentUser?.role === 'PROJECT_MANAGER' && (
-                            <>
-                              <button 
-                                onClick={() => openEditDialog(member)}
-                                className="w-[34px] h-[34px] rounded-full border-[1.5px] border-[#fef3c7] bg-[#fffbeb] text-[#f59e0b] flex items-center justify-center hover:bg-[#fef3c7] transition-colors shadow-sm"
-                              >
-                                <Pencil size={14} strokeWidth={2.5} />
-                              </button>
-                              <button 
-                                onClick={() => confirmDelete(member)}
-                                disabled={currentUser.email === member.email}
-                                className="w-[34px] h-[34px] rounded-full border-[1.5px] border-[#fee2e2] bg-[#fef2f2] text-[#ef4444] flex items-center justify-center hover:bg-[#fee2e2] transition-colors disabled:opacity-50 shadow-sm"
-                              >
-                                <Trash2 size={15} strokeWidth={2.5} />
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      </td>
-                    </motion.tr>
-                  )
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
+    <div className="relative h-full pb-20 px-8 font-sans bg-transparent text-slate-700">
+      {/* ANIMATED NEON BACKGROUND */}
+      <div className="fixed inset-0 pointer-events-none -z-10">
+        <motion.div animate={{ x: [0, 100, -50, 0], y: [0, 50, 150, 0], opacity: [0.3, 0.5, 0.3] }} transition={{ duration: 20, repeat: Infinity, ease: "linear" }} className="absolute top-[-10%] right-[10%] w-[700px] h-[700px] bg-[#00BCD4]/20 blur-[120px] rounded-full" />
+        <motion.div animate={{ x: [0, -150, 50, 0], y: [0, 150, 50, 0], opacity: [0.2, 0.4, 0.2] }} transition={{ duration: 25, repeat: Infinity, ease: "linear" }} className="absolute bottom-[-10%] left-[5%] w-[600px] h-[600px] bg-[#ff007f]/10 blur-[120px] rounded-full" />
       </div>
 
-         <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
-        <DialogContent className="fixed z-50 !right-0 !left-auto !top-0 !bottom-0 !translate-x-0 !translate-y-0 h-full w-full sm:!max-w-[420px] p-0 !rounded-none !rounded-l-3xl border-none shadow-[-10px_0_40px_rgba(0,0,0,0.08)] bg-white overflow-y-auto duration-300 ease-in-out data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right outline-none">
-          {selectedMember && (
-            <div className="flex flex-col min-h-full bg-white relative">
-              
-              {/* Avatar and Name */}
-              <div className="pt-16 pb-6 px-8 flex flex-col items-center">
-                <div className="w-[85px] h-[85px] mb-4 bg-white border-[2.5px] border-[#2ebccb] rounded-[24px] flex items-center justify-center shadow-sm relative">
-                  <span className="text-[28px] font-[800] text-[#2ebccb]">
-                    {selectedMember.full_name.charAt(0).toUpperCase()}
-                    {selectedMember.full_name.split(' ')[1] ? selectedMember.full_name.split(' ')[1].charAt(0).toUpperCase() : ''}
-                  </span>
-                </div>
-                <h2 className="text-[24px] font-[900] text-[#1f2937] tracking-tight mb-3">{selectedMember.full_name}</h2>
-                <div className="flex items-center gap-2.5">
-                  <span className="px-3 py-1 rounded-full bg-gray-50 text-gray-500 text-[11.5px] font-[700] border border-gray-100">
-                    {selectedMember.position ? selectedMember.position.split(' - ')[0] : (selectedMember.role || "Dev")}
-                  </span>
-                  <span className="px-3 py-1 rounded-full bg-[#eff6ff] text-[#3b82f6] text-[11.5px] font-[700] border border-[#dbeafe]">
-                    {getLevel(selectedMember.position || "")}
-                  </span>
-                </div>
+      <div className="max-w-[1550px] mx-auto pt-10">
+
+        {/* HEADER SECTION RESTORED */}
+        <div className="flex gap-12 mb-4 items-center">
+          <div className="relative group">
+            <div className="absolute -inset-4 bg-gradient-to-br from-[#00BCD4] to-[#ff007f] rounded-full blur-2xl opacity-30 animate-[spin_8s_linear_infinite]"></div>
+            <motion.div whileHover={{ scale: 1.05 }} className="relative cursor-pointer">
+              <svg width="140" height="140" viewBox="0 0 100 100" className="drop-shadow-[0_10px_40px_rgba(0,188,212,0.2)]">
+                <defs>
+                  <clipPath id="circleClip"><circle cx="50" cy="50" r="42" /></clipPath>
+                  <linearGradient id="orbGrad" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stopColor="#00BCD4" />
+                    <stop offset="100%" stopColor="#ff007f" />
+                  </linearGradient>
+                </defs>
+                <circle cx="50" cy="50" r="48" fill="none" stroke="url(#orbGrad)" strokeWidth="1" strokeDasharray="10 8" className="animate-[spin_20s_linear_infinite]" />
+                <circle cx="50" cy="50" r="44" fill="white" stroke="#00BCD4" strokeWidth="0.5" />
+                <image href="/manager.webp" width="84" height="84" x="8" y="8" clipPath="url(#circleClip)" preserveAspectRatio="xMidYMid slice" />
+              </svg>
+            </motion.div>
+          </div>
+
+          <div className="flex-1">
+            <div className="bg-white/80 backdrop-blur-2xl p-10 rounded-[3rem] border border-white shadow-[0_15px_50px_rgba(0,0,0,0.03)] flex items-center justify-between group">
+              <div>
+                <h1 className="text-[34px] font-black text-slate-800 tracking-tighter mb-2 group-hover:text-[#00BCD4] transition-colors">Membres</h1>
+                <p className="text-slate-400 font-bold uppercase tracking-[0.3em] text-[10px] flex items-center gap-3">
+                  <span className="w-8 h-[2px] bg-[#00BCD4]"></span> Team-Node pod.
+                </p>
               </div>
 
-              {/* Info Sections */}
-              <div className="flex-1 px-8 py-4 space-y-7">
-                
-                {/* Contact */}
-                <div className="space-y-3.5">
-                  <h4 className="text-[10.5px] font-[800] text-[#9ca3af] uppercase tracking-wider">Contact</h4>
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-3.5 text-[13px] font-[700] text-[#1f2937]">
-                      <span className="w-[22px] h-[22px] rounded-md bg-[#f3e8ff] text-[#9333ea] flex items-center justify-center text-[11px]">@</span>
-                      {selectedMember.email}
-                    </div>
-                    <div className="flex items-center gap-3.5 text-[13px] font-[700] text-[#1f2937]">
-                      <span className="w-[22px] h-[22px] rounded-md bg-[#ffedd5] text-[#ea580c] flex items-center justify-center">
-                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/></svg>
-                      </span>
-                      {selectedMember.phone_number || "+33 6 12 34 56 78"}
-                    </div>
-                  </div>
+              <div className="flex items-center gap-6">
+                <div className="flex bg-[#e8f1f8] p-1.5 rounded-[1.8rem] gap-1 shadow-inner">
+                  <button onClick={() => setViewMode('pod')} className={`flex items-center gap-2 px-6 py-2.5 rounded-[1.2rem] text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'pod' ? 'bg-white text-[#00BCD4] shadow-[0_4px_15px_rgba(0,188,212,0.1)]' : 'text-slate-400 hover:text-slate-600'}`}><Network size={14} /> Pod</button>
+                  <button onClick={() => setViewMode('cards')} className={`flex items-center gap-2 px-6 py-2.5 rounded-[1.2rem] text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'cards' ? 'bg-white text-[#00BCD4] shadow-[0_4px_15px_rgba(0,188,212,0.1)]' : 'text-slate-400 hover:text-slate-600'}`}><LayoutGrid size={14} /> Cartes</button>
                 </div>
 
-                {/* Compétences Techniques */}
-                <div className="space-y-3.5">
-                  <h4 className="text-[10.5px] font-[800] text-[#9ca3af] uppercase tracking-wider">Compétences Techniques</h4>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedMember.skills?.map((s, i) => (
-                      <span key={i} className="bg-white border-[1.5px] border-gray-100 text-[#4b5563] px-3.5 py-1.5 rounded-full text-[11px] font-[800] shadow-sm">
-                        {s}
-                      </span>
-                    ))}
-                    {(!selectedMember.skills || selectedMember.skills.length === 0) && (
-                       <span className="text-gray-400 text-xs italic">Aucune compétence listée</span>
-                    )}
-                  </div>
-                </div>
+                <button onClick={() => { setIsEdit(false); setFormData(defaultForm); setWizardStep(1); setIsDialogOpen(true); }} className="w-16 h-16 rounded-full bg-white border-2 border-[#00BCD4]/10 flex items-center justify-center text-[#00BCD4] hover:bg-[#00BCD4] hover:text-white transition-all shadow-[0_8px_30px_rgba(0,188,212,0.1)] active:scale-95">
+                  <Plus size={24} strokeWidth={3} />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
 
-                {/* Infos Complémentaires */}
-                <div className="space-y-3.5">
-                  <h4 className="text-[10.5px] font-[800] text-[#9ca3af] uppercase tracking-wider">Infos Complémentaires</h4>
-                  <div className="flex gap-3">
-                    <div className="flex-1 bg-white border-[1.5px] border-gray-50 rounded-2xl p-4 shadow-sm hover:border-gray-100 transition-colors">
-                      <p className="text-[10.5px] font-[700] text-[#9ca3af] mb-1">Expérience</p>
-                      <p className="text-[15px] font-[900] text-[#1f2937]">4+ années</p>
-                    </div>
-                    <div className="flex-1 bg-white border-[1.5px] border-gray-50 rounded-2xl p-4 shadow-sm hover:border-gray-100 transition-colors">
-                      <p className="text-[10.5px] font-[700] text-[#9ca3af] mb-1">Projets en cours</p>
-                      <p className="text-[15px] font-[900] text-[#1f2937]">
-                         {loadingDetails ? "..." : (memberDetails?.tasks?.length || "0")}
-                      </p>
-                    </div>
-                  </div>
-                </div>
+        <AnimatePresence mode="wait">
+          {viewMode === 'pod' ? (
+            <motion.div key="pod" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
 
-                {/* Charge de Travail */}
-                <div className="space-y-3.5">
-                  <h4 className="text-[10.5px] font-[800] text-[#9ca3af] uppercase tracking-wider">Charge de Travail</h4>
-                  {(() => {
-                    const charge = getCharge(selectedMember.full_name);
-                    return (
-                      <div className="h-[9px] w-full rounded-full bg-[#f3f4f6]">
-                        <div className={`h-full rounded-full ${charge.barColor} ${charge.width}`}></div>
+              {/* ENTIRE NEURAL TREE HIERARCHY */}
+              <div className="flex items-center justify-center relative pt-2 pb-12 w-full">
+
+                {/* 1. COMMANDER CARD (ALICE - GOLD/DORÉ) */}
+                <motion.div
+                  whileHover={{ y: -8, scale: 1.02 }}
+                  className="w-[280px] relative flex-shrink-0 group/cmd z-10 rounded-[2.5rem] glow-yellow bg-white/40 backdrop-blur-2xl transition-all duration-500"
+                >
+                  <div className="relative z-10 bg-white/70 backdrop-blur-3xl rounded-[2.5rem] p-6 w-full h-full border border-white/50 overflow-hidden">
+
+                    <div className="absolute top-0 right-6 w-[45px] h-[60px] bg-gradient-to-b from-[#e2c176] to-[#d4af37] shadow-[0_5px_20px_rgba(212,175,55,0.4)] flex flex-col items-center justify-center text-white z-10" style={{ clipPath: 'polygon(0% 0%, 100% 0%, 100% 85%, 50% 100%, 0% 85%)' }}>
+                      <Crown size={22} className="mt-[-5px] drop-shadow-md text-white" fill="currentColor" />
+                    </div>
+
+                    <h2 className="text-[20px] font-black text-slate-800 tracking-tight mb-6 mt-2 relative z-10 group-hover/cmd:text-amber-600 transition-colors">Alice Manager</h2>
+
+                    <div className="flex flex-col items-center gap-4 mb-10 relative z-10">
+                      <div className="relative w-[120px] h-[120px] group-hover/cmd:scale-110 transition-transform duration-500">
+                        {/* Aura Shadow matching logic */}
+                        <div className="absolute inset-0 bg-amber-400 rounded-full blur-2xl opacity-20 animate-pulse" />
+                        <img src="/manager.webp" className="relative h-full w-full object-contain drop-shadow-[0_10px_20px_rgba(251,191,36,0.2)]" />
                       </div>
-                    )
-                  })()}
+                    </div>
+
+                    <div className="flex gap-2 mb-6 justify-center relative z-10 w-full px-2">
+                      <div className="flex-1 max-w-[140px] bg-amber-50 text-amber-600 py-1.5 rounded-full text-[8.5px] font-black uppercase flex items-center justify-center gap-1.5 border border-amber-100">
+                        <ShieldCheck size={10} /> Senior Manager
+                      </div>
+                    </div>
+
+                    <div className="mt-auto pt-4 border-t border-slate-100/50 space-y-2 relative z-10">
+                      <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden shadow-inner p-[1px]">
+                        <div className="h-full w-[65%] bg-gradient-to-r from-amber-400 to-amber-600 shadow-[0_0_10px_rgba(251,191,36,0.5)] rounded-full relative">
+                          <div className="absolute inset-0 bg-[linear-gradient(90deg,transparent,rgba(255,255,255,0.5),transparent)] animate-[shimmer_2s_infinite]" />
+                        </div>
+                      </div>
+                      <p className="text-[7px] font-black text-slate-400 uppercase tracking-widest text-center group-hover/cmd:text-amber-500 transition-colors">XP = Level Up / 1200</p>
+                    </div>
+                  </div>
+                </motion.div>
+
+                {/* Main Bridge from Commander to Lead */}
+                <div className="w-16 h-[2px] bg-slate-200 shrink-0"></div>
+
+                {/* Lead Connector Node */}
+                <div className="relative flex items-center justify-center w-6 h-6 z-10 -ml-3 shrink-0">
+                  <div className="w-full h-full bg-white rounded-full border-2 border-[#00BCD4] flex items-center justify-center">
+                    <div className="w-1.5 h-1.5 bg-[#00BCD4] rounded-full"></div>
+                  </div>
                 </div>
 
-                {/* Actions / Documents */}
-                <div className="flex gap-3 pt-3">
-                  <button 
-                    onClick={() => { if (selectedMember.cv_url) window.open(`http://localhost:8000${selectedMember.cv_url}`, "_blank") }}
-                    disabled={!selectedMember.cv_url}
-                    className="flex-1 h-12 bg-white border-[1.5px] border-gray-100 rounded-xl flex items-center justify-center gap-2 text-[12px] font-[800] text-[#1f2937] hover:bg-gray-50 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                  >
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-gray-500"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
-                    {selectedMember.cv_url ? "Voir le CV (PDF)" : "Aucun CV"}
-                  </button>
-                  <button 
-                    onClick={() => { if (selectedMember.linkedin_url) window.open(selectedMember.linkedin_url, "_blank") }}
-                    disabled={!selectedMember.linkedin_url}
-                    className="flex-1 h-12 bg-white border-[1.5px] border-gray-100 rounded-xl flex items-center justify-center gap-2 text-[12px] font-[800] text-[#1f2937] hover:bg-gray-50 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                  >
-                    LinkedIn
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-gray-500"><path d="M7 17L17 7"/><path d="M7 7h10v10"/></svg>
-                  </button>
+                {/* LEADS COLUMN */}
+                <div className="flex flex-col justify-center relative z-10 ml-4">
+                  {leads.length > 0 ? leads.map((lead, i) => (
+                    <MemberPodCard key={lead.id} member={lead} gender="boy" />
+                  )) : (
+                    <div className="relative">
+                      <MemberPodCard member={{ full_name: "Bob Lead", role: "TEAM_LEAD" }} gender="boy" />
+                      {/* Line exiting Lead to the right */}
+                      <div className="absolute top-1/2 -right-12 w-12 h-[2px] bg-slate-200 -translate-y-1/2"></div>
+                    </div>
+                  )}
+                </div>
+
+                {/* MEMBERS COLUMN */}
+                <div className="flex flex-col gap-8 relative z-10 w-[260px] ml-12">
+
+                  {/* Vertical Spanning Backbone (Guarantees perfect center routing) */}
+                  <div className="absolute left-[-48px] top-[40px] bottom-[40px] w-[2px] bg-slate-200"></div>
+
+                  {(others.length > 0 ? others.slice(0, 3) : [
+                    { full_name: "Charlie Member", role: "Developer - Mid" },
+                    { full_name: "Jean Dupont", role: "Frontend Dev" },
+                    { full_name: "Test User", role: "Team Member" } // Added 3rd dummy to fill the tree nicely
+                  ]).map((m, i) => (
+                    <div key={i} className="relative">
+                      {/* Horizontal Line attaching to Vertical Backbone */}
+                      <div className="absolute top-1/2 left-[-48px] w-12 h-[2px] bg-slate-200 -translate-y-1/2"></div>
+                      <div className="absolute top-1/2 left-[-48px] w-2 h-2 rounded-full bg-sky-500 -translate-x-1/2 -translate-y-1/2 shadow-[0_0_8px_#0ca5e9]"></div>
+
+                      <MemberPodCard member={m} gender={m.full_name.toLowerCase().includes('charlie') ? 'girl' : 'boy'} size="small" haste={i === 1} color="cyan" />
+                    </div>
+                  ))}
                 </div>
               </div>
 
-              {/* Bottom Sticky Action */}
-              <div className="p-8 pt-4 mt-auto">
-                {currentUser?.role === 'PROJECT_MANAGER' && (
-                  <button 
-                    onClick={() => {
-                       setIsDetailsOpen(false);
-                       setTimeout(() => confirmDelete(selectedMember), 300);
-                    }}
-                    className="w-full h-[52px] bg-[#fef2f2] hover:bg-[#fee2e2] text-[#ef4444] rounded-[14px] flex items-center justify-center gap-2.5 text-[14px] font-[800] border-[1.5px] border-[#fee2e2] transition-colors shadow-sm"
+            </motion.div>
+          ) : (
+            <motion.div key="cards" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="grid grid-cols-4 gap-10 px-4">
+              {members.filter(m => !m.full_name.toLowerCase().includes('alice')).map((member, i) => {
+                const colorClass = 'glow-cyan';
+                const dotColor = 'bg-sky-500';
+
+                return (
+                  <motion.div
+                    key={member.id}
+                    whileHover={{ y: -8, scale: 1.02 }}
+                    className={`relative transition-all duration-500 rounded-[2.8rem] bg-white/40 backdrop-blur-2xl ${colorClass}`}
                   >
-                    <Trash2 size={16} strokeWidth={3} />
-                    Retirer de l'équipe
-                  </button>
+                    <div className="relative z-10 bg-white/70 backdrop-blur-3xl p-8 rounded-[2.8rem] w-full h-full border border-white/50 shadow-xl shadow-slate-200/20 overflow-hidden">
+                      <div className="flex gap-4 mb-6">
+                        <div className="w-[64px] h-[64px] rounded-full bg-white border border-slate-100/50 overflow-hidden shadow-sm">
+                          <img src={getAvatar(member.full_name, member.position || member.role)} className="w-full h-full object-cover" alt="" />
+                        </div>
+                        <div>
+                          <h3 className="text-lg font-black text-slate-800 leading-tight">{member.full_name}</h3>
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-1">{member.role}</p>
+                        </div>
+                      </div>
+
+                      <div className="flex justify-between items-center mb-8 px-1">
+                        {[1, 2, 3, 4].map((lvl, k) => (
+                          <div key={k} className="flex flex-col items-center gap-1.5">
+                            {k === 0 ? (
+                              <div className={`w-8 h-9 rounded-lg border flex items-center justify-center shadow-lg bg-[#00BCD4] text-white`} style={{ clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)' }}>
+                                <Shield size={12} fill="currentColor" />
+                              </div>
+                            ) : (
+                              <div className="w-8 h-9 rounded-lg border bg-white/50 text-slate-300 border-slate-100 flex items-center justify-center relative overflow-hidden" style={{ clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)' }}>
+                                <Lock size={12} />
+                              </div>
+                            )}
+                            <span className={`text-[9px] font-black uppercase tracking-wider ${k === 0 ? 'text-slate-700' : 'text-slate-300'}`}>
+                              {k === 0 ? 'Lv 1' : 'Lock'}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="space-y-5 pt-5 border-t border-slate-100/50">
+                        <div className="space-y-2">
+                          <div className="flex justify-between text-[10px] font-black uppercase tracking-wider text-slate-400">
+                            <span>Team Power</span>
+                            <span className="text-slate-700">85 %</span>
+                          </div>
+                          <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                            <div className={`h-full bg-gradient-to-r from-[#00BCD4] to-sky-500 w-[85%] rounded-full relative`} />
+                          </div>
+                        </div>
+                        <div className="flex gap-3 justify-center mt-2 w-full">
+                          <button onClick={() => { setSelectedMember(member); setIsViewModalOpen(true); }} className="w-10 h-10 rounded-xl bg-white text-slate-400 border border-slate-100 flex items-center justify-center shadow-sm hover:bg-slate-50 hover:text-sky-500 transition-all duration-300 hover:-translate-y-0.5"><Eye size={16} /></button>
+                          <button onClick={() => {
+                            const names = member.full_name.split(" ");
+                            setFormData({ ...defaultForm, prenom: names[0] || "", nom: names.slice(1).join(" ") || "", email: member.email || "", role: member.position?.split(" - ")[0] || "Frontend Dev", grade: member.position?.split(" - ")[1] || "Junior", competences: member.skills || [] });
+                            setEditId(member.id); setIsEdit(true); setWizardStep(1); setIsDialogOpen(true);
+                          }} className="w-10 h-10 rounded-xl bg-white text-slate-400 border border-slate-100 flex items-center justify-center shadow-sm hover:bg-slate-50 hover:text-slate-600 transition-all duration-300 hover:-translate-y-0.5"><Pencil size={14} /></button>
+                          <button onClick={() => { setSelectedMember(member); setIsDeleteModalOpen(true); }} className="w-10 h-10 rounded-xl bg-white text-slate-400 border border-slate-100 flex items-center justify-center shadow-sm hover:bg-rose-50 hover:border-rose-200 hover:text-rose-500 transition-all duration-300 hover:-translate-y-0.5"><Trash2 size={14} /></button>
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                )
+              })}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <Dialog
+          open={isDialogOpen}
+          onOpenChange={(val) => {
+            setIsDialogOpen(val);
+            if (!val) {
+              setIsEdit(false);
+              setWizardStep(1);
+            }
+          }}
+        >
+          <DialogContent className="sm:max-w-[550px] p-0 rounded-[2rem] bg-white border-none shadow-2xl overflow-hidden">
+            <div className="p-10">
+              <DialogHeader className="mb-8">
+                <DialogTitle className="text-[22px] font-black text-[#1e293b] tracking-tight">{isEdit ? `Modifier ${formData.prenom} ${formData.nom}` : "Ajouter un Développeur"}</DialogTitle>
+              </DialogHeader>
+
+              {/* Stepper */}
+              <div className="flex gap-2 mb-8">
+                <div className={`h-1 flex-1 rounded-full ${wizardStep >= 1 ? 'bg-[#00BCD4]' : 'bg-slate-100'}`} />
+                <div className={`h-1 flex-1 rounded-full ${wizardStep >= 2 ? 'bg-[#00BCD4]' : 'bg-slate-100'}`} />
+                <div className={`h-1 flex-1 rounded-full ${wizardStep >= 3 ? 'bg-[#00BCD4]' : 'bg-slate-100'}`} />
+              </div>
+
+              <AnimatePresence mode="wait">
+                {wizardStep === 1 && (
+                  <motion.div key="step-1" initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -20, opacity: 0 }} transition={{ duration: 0.3 }} className="space-y-6">
+                    <h3 className="font-bold text-[#1e293b] text-[15px] mb-4">Étape 1 : Infos personnelles</h3>
+                    <div className="grid grid-cols-2 gap-5">
+                      <div>
+                        <label className="text-[10px] font-black uppercase text-slate-500 tracking-widest pl-1 mb-1.5 block">Prénom</label>
+                        <Input placeholder="Jean" className="rounded-2xl h-12 bg-white border border-slate-200 outline-none focus-visible:ring-1 focus-visible:ring-[#00BCD4] px-4 font-semibold text-slate-700" value={formData.prenom} onChange={e => setFormData({ ...formData, prenom: e.target.value })} />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-black uppercase text-slate-500 tracking-widest pl-1 mb-1.5 block">Nom</label>
+                        <Input placeholder="Dupont" className="rounded-2xl h-12 bg-white border border-slate-200 outline-none focus-visible:ring-1 focus-visible:ring-[#00BCD4] px-4 font-semibold text-slate-700" value={formData.nom} onChange={e => setFormData({ ...formData, nom: e.target.value })} />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-black uppercase text-slate-500 tracking-widest pl-1 mb-1.5 block">Email Professionnel</label>
+                        <Input placeholder="jean@pfe.com" type="email" className="rounded-2xl h-12 bg-white border border-slate-200 outline-none focus-visible:ring-1 focus-visible:ring-[#00BCD4] px-4 font-semibold text-slate-700" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-black uppercase text-slate-500 tracking-widest pl-1 mb-1.5 block">Téléphone</label>
+                        <Input placeholder="+33 6..." className="rounded-2xl h-12 bg-white border border-slate-200 outline-none focus-visible:ring-1 focus-visible:ring-[#00BCD4] px-4 font-semibold text-slate-700" value={formData.telephone} onChange={e => setFormData({ ...formData, telephone: e.target.value })} />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-black uppercase text-slate-500 tracking-widest pl-1 mb-1.5 block">Rôle</label>
+                        <select className="w-full h-12 rounded-2xl bg-white border border-slate-200 px-4 font-semibold text-slate-700 outline-none focus-visible:ring-1 focus-visible:ring-[#00BCD4]" value={formData.role} onChange={e => setFormData({ ...formData, role: e.target.value })}>
+                          <option>Frontend Dev</option><option>Backend Dev</option><option>Fullstack</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-black uppercase text-slate-500 tracking-widest pl-1 mb-1.5 block">Grade</label>
+                        <select className="w-full h-12 rounded-2xl bg-white border border-slate-200 px-4 font-semibold text-slate-700 outline-none focus-visible:ring-1 focus-visible:ring-[#00BCD4]" value={formData.grade} onChange={e => setFormData({ ...formData, grade: e.target.value })}>
+                          <option>Junior</option><option>Mid</option><option>Senior</option><option>Lead</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="pt-2">
+                      <Button onClick={() => setWizardStep(2)} className="w-full h-12 bg-[#00BCD4] font-bold text-[15px] rounded-2xl text-white shadow-md hover:bg-[#0052cc]">Suivant</Button>
+                    </div>
+                  </motion.div>
                 )}
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-      
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent className="sm:max-w-[420px] p-0 overflow-hidden rounded-3xl border-none shadow-2xl bg-white outline-none">
-          {/* Top Border Bar */}
-          <div className="flex h-1.5 w-full">
-            <div className="flex-1 bg-[#00b5c5]"></div>
-            <div className="flex-1 bg-[#d41f1f]"></div>
-          </div>
-          
-          <div className="p-8 flex flex-col items-center text-center">
-            {/* Icon */}
-            <div className="mb-5 w-16 h-16 bg-[#fef2f2] rounded-2xl flex items-center justify-center border border-[#fee2e2]">
-              <UserMinus className="text-[#ef4444] w-8 h-8" strokeWidth={2.5} />
-            </div>
-            
-            {/* Title & Desc */}
-            <h2 className="text-[20px] font-[800] text-[#1f2937] mb-3">Retrait du membre</h2>
-            <p className="text-[13px] text-[#6b7280] font-[600] mb-6 px-2 leading-relaxed">
-              Êtes-vous sûr de vouloir retirer ce membre de l'équipe du projet ?
-            </p>
-            
-            {/* User Card */}
-            {memberToDelete && (
-              <div className="w-full bg-[#fafafa] border border-gray-100 rounded-xl p-3.5 flex items-center gap-3.5 mb-6 relative overflow-hidden">
-                 <div className="absolute right-0 top-0 bottom-0 w-32 bg-gradient-to-l from-[#fef2f2] to-transparent opacity-80 pointer-events-none"></div>
-                 
-                 <div className="w-10 h-10 rounded-[10px] bg-[#00b5c5] flex items-center justify-center text-white font-[800] text-[14px] shadow-sm z-10">
-                   {memberToDelete.full_name.charAt(0).toUpperCase()}
-                   {memberToDelete.full_name.split(' ')[1] ? memberToDelete.full_name.split(' ')[1].charAt(0).toUpperCase() : ''}
-                 </div>
-                 <div className="flex flex-col items-start z-10">
-                   <span className="text-[14px] font-[800] text-[#1f2937]">{memberToDelete.full_name}</span>
-                   <span className="text-[10.5px] font-[800] text-[#00b5c5] uppercase tracking-wider mt-0.5">
-                     {memberToDelete.position ? memberToDelete.position.split(' - ')[0] : (memberToDelete.role || "Dev")}
-                   </span>
-                 </div>
-              </div>
-            )}
-            
-            {/* Warning Text */}
-            <p className="text-[11.5px] text-[#6b7280] font-[600] leading-relaxed mb-8 px-4">
-              <span className="text-[#d41f1f] font-[800]">Attention :</span> L'historique de ses tâches sera conservé, mais ses accès au projet seront révoqués.
-            </p>
-            
-            {/* Actions */}
-            <div className="flex w-full gap-3">
-              <button 
-                onClick={() => setIsDeleteDialogOpen(false)}
-                className="flex-1 h-12 bg-white border-[1.5px] border-gray-200 rounded-[14px] text-[13.5px] font-[800] text-[#00b5c5] hover:bg-gray-50 transition-colors shadow-sm"
-              >
-                Annuler
-              </button>
-              <button 
-                onClick={handleDelete}
-                className="flex-[1.2] h-12 bg-[#d41f1f] hover:bg-[#b91c1c] shadow-md border border-[#b91c1c] rounded-[14px] text-[13.5px] font-[800] text-white transition-colors flex items-center justify-center gap-2"
-              >
-                <Trash2 size={16} strokeWidth={2.5} />
-                Retirer
-              </button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-      {/* Edit Member Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-[480px] p-8 rounded-[24px] border-none shadow-2xl bg-white outline-none">
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-[20px]">✏️</span>
-            <h2 className="text-[20px] font-[900] text-[#1f2937] tracking-tight">Modifier le Membre</h2>
-          </div>
-          {memberToEdit && (
-             <p className="text-[#00b5c5] text-[12px] font-[600] mb-6">{memberToEdit.full_name}</p>
-          )}
 
-          <div className="space-y-5">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label className="text-[10.5px] font-[800] text-[#94a3b8] uppercase tracking-wider">Prénom</Label>
-                <Input 
-                  value={editForm.first_name} onChange={e => setEditForm({...editForm, first_name: e.target.value})}
-                  className="rounded-xl border-[1.5px] border-gray-100 focus-visible:ring-[#00b5c5] h-11 text-[13px] font-[600] text-[#1f2937] bg-white shadow-sm" />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-[10.5px] font-[800] text-[#94a3b8] uppercase tracking-wider">Nom</Label>
-                <Input 
-                  value={editForm.last_name} onChange={e => setEditForm({...editForm, last_name: e.target.value})}
-                  className="rounded-xl border-[1.5px] border-gray-100 focus-visible:ring-[#00b5c5] h-11 text-[13px] font-[600] text-[#1f2937] bg-white shadow-sm" />
-              </div>
-            </div>
+                {wizardStep === 2 && (
+                  <motion.div key="step-2" initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -20, opacity: 0 }} transition={{ duration: 0.3 }} className="space-y-6">
+                    <h3 className="font-bold text-[#1e293b] text-[15px] mb-4">Étape 2 : Compétences</h3>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label className="text-[10.5px] font-[800] text-[#94a3b8] uppercase tracking-wider">Rôle</Label>
-                <Select value={editForm.role} onValueChange={v => setEditForm({...editForm, role: v || ""})}>
-                  <SelectTrigger className="rounded-xl border-[1.5px] border-gray-100 focus:ring-[#00b5c5] h-11 text-[13px] font-[600] text-[#1f2937] bg-white shadow-sm"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Frontend Dev">Frontend Dev</SelectItem>
-                    <SelectItem value="Backend Dev">Backend Dev</SelectItem>
-                    <SelectItem value="Full Stack">Full Stack</SelectItem>
-                    <SelectItem value="UI/UX Design">UI/UX Design</SelectItem>
-                    <SelectItem value="Data Scientist">Data Scientist</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-[10.5px] font-[800] text-[#94a3b8] uppercase tracking-wider">Niveau</Label>
-                <Select value={editForm.grade} onValueChange={v => setEditForm({...editForm, grade: v || ""})}>
-                  <SelectTrigger className="rounded-xl border-[1.5px] border-gray-100 focus:ring-[#00b5c5] h-11 text-[13px] font-[600] text-[#1f2937] bg-white shadow-sm"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Junior">Junior</SelectItem>
-                    <SelectItem value="Mid">Mid</SelectItem>
-                    <SelectItem value="Senior">Senior</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+                    <div>
+                      <label className="text-[10px] font-black uppercase text-slate-500 tracking-widest pl-1 mb-2 block">Ajouter une compétence</label>
+                      <Input placeholder="Entrez une compétence (Ex: React)..." className="rounded-2xl h-12 bg-white border border-slate-200 outline-none focus-visible:ring-1 focus-visible:ring-[#00BCD4] px-4 font-semibold text-slate-700 mb-4" />
 
-            <div className="space-y-1.5">
-              <Label className="text-[10.5px] font-[800] text-[#94a3b8] uppercase tracking-wider">Statut</Label>
-              <Select value={editForm.status} onValueChange={v => setEditForm({...editForm, status: v || ""})}>
-                <SelectTrigger className="rounded-xl border-[1.5px] border-gray-100 focus:ring-[#00b5c5] h-11 text-[13px] font-[600] text-[#1f2937] bg-white shadow-sm"><SelectValue /></SelectTrigger>
-                <SelectContent><SelectItem value="Actif">Actif</SelectItem><SelectItem value="Inactif">Inactif</SelectItem></SelectContent>
-              </Select>
-            </div>
+                      <div className="flex flex-wrap gap-2">
+                        {['React', 'Vue', 'Angular', 'Node.js', 'Python', 'FastAPI', 'Django', 'PostgreSQL', 'MongoDB', 'Docker', 'AWS', 'Git', 'Figma', 'TypeScript'].map(skill => (
+                          <button key={skill} onClick={() => setFormData(prev => ({ ...prev, competences: prev.competences.includes(skill) ? prev.competences.filter(s => s !== skill) : [...prev.competences, skill] }))}
+                            className={`px-4 py-1.5 rounded-full border text-[13px] font-semibold transition-all ${formData.competences.includes(skill) ? 'bg-[#00BCD4] text-white border-[#00BCD4]' : 'bg-white text-slate-500 border-slate-200 hover:border-[#00BCD4] hover:text-[#00BCD4]'}`}>
+                            {skill}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
 
-            <div className="space-y-1.5">
-              <Label className="text-[10.5px] font-[800] text-[#94a3b8] uppercase tracking-wider">Compétences (virgule entre chaque)</Label>
-              <Input 
-                value={editForm.skills} onChange={e => setEditForm({...editForm, skills: e.target.value})}
-                placeholder="React, FastAPI, Python, Docker"
-                className="rounded-xl border-[1.5px] border-gray-100 focus-visible:ring-[#00b5c5] h-11 text-[13px] font-[600] text-[#1f2937] bg-white shadow-sm" />
+                    <div className="pt-2">
+                      <label className="text-[10px] font-black uppercase text-slate-500 tracking-widest pl-1 mb-3 block">Expérience ({formData.experience} ans)</label>
+                      <input type="range" min="0" max="10" value={formData.experience} onChange={e => setFormData({ ...formData, experience: parseInt(e.target.value) })} className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-[#2563eb]" />
+                    </div>
+
+                    <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex justify-between items-center mt-2">
+                      <span className="text-[11px] font-black uppercase tracking-widest text-[#1e293b]">Disponibilité actuelle</span>
+                      <select className="bg-white border border-slate-200 rounded-xl px-4 py-2 font-bold text-slate-600 outline-none text-sm" value={formData.disponibilite} onChange={e => setFormData({ ...formData, disponibilite: e.target.value })}>
+                        <option>Disponible</option><option>En mission</option><option>En congé</option>
+                      </select>
+                    </div>
+
+                    <div className="flex gap-4 pt-4">
+                      <Button onClick={() => setWizardStep(1)} variant="outline" className="flex-1 h-12 bg-white border border-slate-200 font-bold text-[15px] rounded-2xl text-slate-600 hover:bg-slate-50 hover:text-slate-800">Retour</Button>
+                      <Button onClick={() => setWizardStep(3)} className="w-[65%] h-12 bg-[#00BCD4] font-bold text-[15px] rounded-2xl text-white shadow-md hover:bg-[#0052cc]">Suivant</Button>
+                    </div>
+                  </motion.div>
+                )}
+
+                {wizardStep === 3 && (
+                  <motion.div key="step-3" initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -20, opacity: 0 }} transition={{ duration: 0.3 }} className="space-y-6">
+                    <h3 className="font-bold text-[#1e293b] text-[15px] mb-4">Étape 3 : Documents & Liens</h3>
+
+                    <div>
+                      <div className="border border-dashed border-slate-300 rounded-2xl p-4 flex justify-center items-center cursor-pointer hover:bg-slate-50 transition-colors">
+                        <span className="text-[13px] font-semibold text-slate-500 flex items-center gap-2">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" /><polyline points="14 2 14 8 20 8" /></svg>
+                          Téléverser le CV (PDF)
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-5">
+                      <div>
+                        <label className="text-[10px] font-black uppercase text-slate-500 tracking-widest pl-1 mb-1.5 block">LinkedIn</label>
+                        <Input placeholder="https://linkedin.com/..." className="rounded-2xl h-12 bg-white border border-slate-200 outline-none focus-visible:ring-1 focus-visible:ring-[#00BCD4] px-4 font-semibold text-slate-700" value={formData.linkedin} onChange={e => setFormData({ ...formData, linkedin: e.target.value })} />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-black uppercase text-slate-500 tracking-widest pl-1 mb-1.5 block">GitHub</label>
+                        <Input placeholder="https://github.com/..." className="rounded-2xl h-12 bg-white border border-slate-200 outline-none focus-visible:ring-1 focus-visible:ring-[#00BCD4] px-4 font-semibold text-slate-700" value={formData.github} onChange={e => setFormData({ ...formData, github: e.target.value })} />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-black uppercase text-slate-500 tracking-widest pl-1 mb-1.5 block">Notes et commentaires</label>
+                      <textarea placeholder="Infos utiles..." rows={4} className="w-full rounded-2xl bg-white border border-slate-200 p-4 font-semibold text-slate-700 outline-none focus-visible:ring-1 focus-visible:ring-[#00BCD4] resize-none" value={formData.notes} onChange={e => setFormData({ ...formData, notes: e.target.value })}></textarea>
+                    </div>
+
+                    <div className="flex gap-4 pt-4">
+                      <Button onClick={() => setWizardStep(2)} variant="outline" className="flex-1 h-12 bg-white border border-slate-200 font-bold text-[15px] rounded-2xl text-slate-600 hover:bg-slate-50 hover:text-slate-800">Retour</Button>
+                      <Button onClick={isEdit ? handleUpdateMember : handleAddMember} className="w-[65%] h-12 bg-[#00BCD4] font-bold text-[15px] flex items-center justify-center gap-2 rounded-2xl text-white shadow-md hover:bg-[#0052cc]">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                        {isEdit ? "Modifier" : "Ajouter à l'équipe"}
+                      </Button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
-          </div>
-          
-          <div className="flex gap-3 mt-8">
-            <button 
-              onClick={() => setIsEditDialogOpen(false)}
-              className="flex-1 h-[42px] bg-white border-[1.5px] border-gray-200 rounded-[12px] text-[13px] font-[800] text-[#4b5563] hover:bg-gray-50 transition-colors shadow-sm"
-            >
-              Annuler
-            </button>
-            <button 
-              onClick={handleUpdateMember}
-              className="flex-[1.5] h-[42px] bg-[#00b5c5] hover:bg-[#00a3b3] shadow-md border-none rounded-[12px] text-[13px] font-[800] text-white transition-colors"
-            >
-              Enregistrer les modifications
-            </button>
-          </div>
-        </DialogContent>
-      </Dialog>
+          </DialogContent>
+        </Dialog>
+
+        {/* VIEW MEMBER MODAL */}
+        <Dialog open={isViewModalOpen} onOpenChange={setIsViewModalOpen}>
+          <DialogContent className="sm:max-w-[380px] p-0 rounded-[2.5rem] bg-white border-none shadow-2xl overflow-hidden">
+            <div className="pt-10 pb-6 px-7 flex flex-col items-center">
+              <div className="w-24 h-24 rounded-3xl border-4 border-sky-100 flex items-center justify-center overflow-hidden mb-4 shadow-xl">
+                <img
+                  src={getAvatar(selectedMember?.full_name || "")}
+                  className="w-full h-full object-cover"
+                  alt=""
+                />
+              </div>
+              <h2 className="text-xl font-black text-slate-800 mb-1.5">{selectedMember?.full_name}</h2>
+              <div className="flex gap-2 mb-6">
+                <span className="bg-slate-50 text-slate-500 px-3 py-1 rounded-full text-[9px] font-black uppercase">Tech Lead</span>
+                <span className="bg-indigo-50 text-indigo-500 px-3 py-1 rounded-full text-[9px] font-black uppercase">Senior</span>
+              </div>
+
+              <div className="w-full space-y-4">
+                <div>
+                  <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-3">Contact</h4>
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3 text-slate-600 font-bold text-sm">
+                      <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-500"><ShieldCheck size={16} /></div>
+                      {selectedMember?.email}
+                    </div>
+                    <div className="flex items-center gap-3 text-slate-600 font-bold text-sm">
+                      <div className="w-8 h-8 rounded-lg bg-orange-50 flex items-center justify-center text-orange-500"><Activity size={16} /></div>
+                      +216 22 333 444
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-3">Compétences Techniques</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {['Development', 'Review'].map(s => (
+                      <span key={s} className="px-4 py-1.5 rounded-full border border-slate-100 text-slate-500 text-[11px] font-bold">{s}</span>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-slate-50/50 p-3 rounded-2xl border border-slate-100">
+                    <p className="text-[9px] font-black text-slate-400 uppercase mb-0.5">Expérience</p>
+                    <p className="text-[13px] font-black text-slate-800">4+ années</p>
+                  </div>
+                  <div className="bg-slate-50/50 p-3 rounded-2xl border border-slate-100">
+                    <p className="text-[9px] font-black text-slate-400 uppercase mb-0.5">Projets</p>
+                    <p className="text-[13px] font-black text-slate-800">3 actifs</p>
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-3">Charge de Travail</h4>
+                  <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                    <div className="h-full w-[60%] bg-blue-500 rounded-full" />
+                  </div>
+                </div>
+
+                <div className="flex gap-3">
+                  <button className="flex-1 h-11 rounded-2xl bg-slate-50 flex items-center justify-center gap-2 text-slate-500 font-bold text-[13px] border border-slate-100 hover:bg-slate-100 transition-colors">
+                    <Shield size={14} /> CV
+                  </button>
+                  <button className="flex-1 h-11 rounded-2xl bg-slate-50 flex items-center justify-center gap-2 text-slate-500 font-bold text-[13px] border border-slate-100 hover:bg-slate-100 transition-colors">
+                    LinkedIn <Plus size={12} className="rotate-45" />
+                  </button>
+                </div>
+
+                <button onClick={() => { setIsViewModalOpen(false); setIsDeleteModalOpen(true); }} className="w-full h-11 rounded-2xl bg-rose-50 text-rose-500 font-bold text-[13px] flex items-center justify-center gap-2 hover:bg-rose-100 transition-colors">
+                  <Trash2 size={14} /> Retirer de l'équipe
+                </button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* DELETE CONFIRMATION MODAL */}
+        <Dialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
+          <DialogContent className="sm:max-w-[380px] p-0 rounded-[2.8rem] bg-white border-none shadow-[0_25px_80px_rgba(0,0,0,0.15)] overflow-hidden">
+            <AnimatePresence>
+              {isDeleteModalOpen && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  className="p-9 flex flex-col items-center relative"
+                >
+                  {/* Neural Glow Background */}
+                  <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-transparent via-rose-500/40 to-transparent" />
+
+                  <motion.div
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ type: "spring", damping: 15, delay: 0.1 }}
+                    className="w-16 h-16 rounded-[1.5rem] bg-rose-50 flex items-center justify-center text-rose-500 mb-6 relative group"
+                  >
+                    <Trash2 size={28} className="relative z-10 group-hover:rotate-12 transition-transform" />
+                  </motion.div>
+
+                  <motion.h2
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.2 }}
+                    className="text-2xl font-black text-slate-800 mb-3 tracking-tight"
+                  >
+                    Retrait du membre
+                  </motion.h2>
+
+                  <motion.p
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.3 }}
+                    className="text-center text-slate-400 font-bold text-[13px] mb-8 leading-relaxed px-2"
+                  >
+                    Êtes-vous sûr de vouloir retirer ce membre de l'équipe du projet ?
+                  </motion.p>
+
+                  <motion.div
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.4 }}
+                    className="w-full bg-slate-50/80 backdrop-blur-sm p-4 rounded-3xl mb-8 flex items-center gap-4 border border-slate-100/50 shadow-sm"
+                  >
+                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#00BCD4] to-[#00897b] flex items-center justify-center text-white font-black text-lg shadow-lg shadow-[#00BCD4]/20">
+                      {selectedMember?.full_name.split(" ").map(n => n[0]).join("")}
+                    </div>
+                    <div>
+                      <h3 className="font-black text-slate-800 text-sm leading-tight">{selectedMember?.full_name}</h3>
+                      <p className="text-[10px] font-black text-[#00BCD4] uppercase tracking-widest mt-0.5">{selectedMember?.role}</p>
+                    </div>
+                  </motion.div>
+
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.5 }}
+                    className="bg-rose-50/30 p-4 rounded-2xl border border-rose-100/30 mb-8"
+                  >
+                    <p className="text-[11px] font-bold text-center leading-relaxed text-slate-600">
+                      <motion.span
+                        animate={{ opacity: [1, 0.5, 1] }}
+                        transition={{ duration: 1.5, repeat: Infinity }}
+                        className="text-rose-500 font-black"
+                      >
+                        Attention :
+                      </motion.span> L'historique de ses tâches sera conservé, mais ses accès au projet seront révoqués.
+                    </p>
+                  </motion.div>
+
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.6 }}
+                    className="flex gap-3 w-full"
+                  >
+                    <Button
+                      onClick={() => setIsDeleteModalOpen(false)}
+                      variant="outline"
+                      className="flex-1 h-14 rounded-2xl border-slate-200 font-black text-slate-500 hover:bg-slate-50 transition-all text-[13px] uppercase tracking-wider"
+                    >
+                      Annuler
+                    </Button>
+                    <Button
+                      onClick={() => selectedMember && handleDeleteMember(selectedMember.id)}
+                      className="flex-1 h-14 rounded-2xl bg-[#ff0055] hover:bg-[#e6004c] text-white font-black flex items-center justify-center gap-3 shadow-xl shadow-rose-500/20 active:scale-95 transition-all text-[13px] uppercase tracking-wider"
+                    >
+                      <Trash2 size={18} /> Retirer
+                    </Button>
+                  </motion.div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </DialogContent>
+        </Dialog>
+      </div>
     </div>
+  )
+}
+
+function MemberPodCard({ member, gender, size = "normal", haste, color = "cyan" }: any) {
+  const avatar = gender === "girl" ? "/girl-removebg-preview.png" : "/boy-removebg-preview.png";
+  const isSmall = size === "small";
+  const glowClass = `glow-${color}`;
+  const dotColor = color === 'yellow' ? 'bg-amber-500' : color === 'red' ? 'bg-rose-500' : color === 'green' ? 'bg-emerald-500' : 'bg-sky-500';
+
+  return (
+    <motion.div
+      whileHover={{ scale: 1.05, y: -4 }}
+      className={`relative rounded-3xl transition-all duration-500 group/pod ${glowClass} ${isSmall ? 'w-[220px]' : 'w-[260px]'} bg-white/40 backdrop-blur-2xl`}
+    >
+      <div className={`relative z-10 bg-white/70 backdrop-blur-xl flex items-center gap-4 border border-white/50 ${isSmall ? 'p-3.5 rounded-3xl' : 'p-5 rounded-3xl'}`}>
+        <div className={`${isSmall ? 'w-[52px] h-[52px]' : 'w-[64px] h-[64px]'} rounded-full bg-white border border-slate-100/50 flex items-center justify-center overflow-hidden relative shadow-sm`}>
+          <img src={avatar} className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-500" alt="" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <h4 className={`font-black text-slate-800 truncate mb-0.5 ${isSmall ? 'text-sm' : 'text-base'}`}>{member.full_name}</h4>
+          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest leading-none">{member.role}</p>
+          <div className="flex gap-2 mt-2.5">
+            <div className={`px-2.5 py-1 rounded-full text-[8px] font-black uppercase flex items-center gap-1.5 border bg-sky-50/50 text-sky-600 border-sky-100`}>
+              <Star size={8} fill="currentColor" /> {member.position || "Developer"}
+            </div>
+          </div>
+        </div>
+      </div>
+    </motion.div>
   )
 }

@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Trash2, AlertTriangle, FolderKanban, Users, CheckCircle2, X } from "lucide-react"
+import { Trash2, AlertTriangle, FolderKanban, Users, CheckCircle2, X, Edit3, Clock, Zap, Plus } from "lucide-react"
 import CreateProjectWizard from "@/components/projects/CreateProjectWizard"
 import { Textarea } from "@/components/ui/textarea"
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
@@ -14,6 +14,9 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useAuthStore } from "@/lib/store"
+import { motion } from "framer-motion"
+import LeaderboardWidget from "@/components/gamification/LeaderboardWidget"
+import NeuralQuestMap from "@/components/gamification/NeuralQuestMap"
 
 interface User {
   id: string
@@ -46,13 +49,6 @@ export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const [newProject, setNewProject] = useState({
-    name: "",
-    description: "",
-    status: "ON_TRACK",
-    progress_percentage: 0,
-    timeline_end: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] // Default to 7 days from now
-  })
   const [editingProject, setEditingProject] = useState<Project | null>(null)
   const [projectToDelete, setProjectToDelete] = useState<{ id: string, name: string } | null>(null)
   const [members, setMembers] = useState<User[]>([])
@@ -100,26 +96,6 @@ export default function ProjectsPage() {
     }
   }
 
-  const handleCreateProject = async (e: React.FormEvent) => {
-    e.preventDefault()
-    try {
-      await axios.post("http://localhost:8000/api/projects/", newProject, {
-        headers: { Authorization: `Bearer ${token || ""}` }
-      })
-      setIsDialogOpen(false)
-      setNewProject({
-        name: "",
-        description: "",
-        status: "ON_TRACK",
-        progress_percentage: 0,
-        timeline_end: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-      })
-      fetchProjects()
-    } catch (err) {
-      alert("Failed to create project. Please ensure all fields are correct.")
-    }
-  }
-
   const handleDeleteProject = (e: React.MouseEvent, projectId: string, projectName: string) => {
     e.preventDefault()
     e.stopPropagation()
@@ -139,25 +115,31 @@ export default function ProjectsPage() {
     }
   }
 
-  if (loading) return <div className="flex h-40 items-center justify-center">Chargement des projets...</div>
+  if (loading) return <div className="flex h-40 items-center justify-center font-black text-slate-400">CHARGEMENT DES PROJETS...</div>
 
-   return (
-    <div className="space-y-3">
-      <div className="flex justify-between items-center mb-1">
+  return (
+    <div className="relative min-h-0 space-y-3 p-4 md:p-8">
+      {/* Dynamic Background Accents */}
+      <div className="absolute top-0 left-1/4 w-96 h-96 bg-[#00BCD4]/5 rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-purple-500/5 rounded-full blur-[120px] pointer-events-none" />
+
+      {/* Header Area */}
+      <div className="flex justify-between items-center pb-2 border-b border-slate-100">
         <div>
-          <h2 className="text-2xl font-black tracking-tight text-slate-900 leading-none mb-1.5">Projets</h2>
-          <p className="text-xs font-bold text-slate-500 uppercase tracking-widest opacity-60">Opérations & Suivi d'équipe</p>
+          <h2 className="text-3xl font-black tracking-tight text-slate-900 leading-none mb-2">Projets</h2>
+          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none">Gestion & Performance</p>
         </div>
 
         {isManager && (
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger 
               render={
-                <Button className="bg-[#00BCD4] hover:bg-[#0097a7] text-white shadow-lg shadow-[#00BCD4]/20 rounded-xl font-black py-5 px-6 text-base h-12">
-                  Nouveau Projet
-                </Button>
-              } 
-            />
+                <Button className="bg-[#00BCD4] hover:bg-[#0097a7] text-white shadow-xl shadow-[#00BCD4]/30 rounded-2xl font-black py-6 px-8 text-base h-11 flex items-center gap-2 transition-all hover:scale-105 active:scale-95" />
+              }
+            >
+              <Plus size={18} />
+              Nouveau Projet
+            </DialogTrigger>
             <DialogContent className="sm:max-w-[700px] p-0 border-none bg-transparent shadow-none [&>button]:hidden">
               <CreateProjectWizard 
                 onClose={() => setIsDialogOpen(false)} 
@@ -168,145 +150,195 @@ export default function ProjectsPage() {
         )}
       </div>
 
-      <Dialog open={!!editingProject} onOpenChange={(open) => !open && setEditingProject(null)}>
-        <DialogContent className="sm:max-w-[480px] p-0 overflow-hidden border-none rounded-2xl bg-white shadow-2xl [&>button]:hidden">
-          {/* Top cyan/red gradient line */}
-          <div className="h-2 w-full bg-gradient-to-r from-[#00BCD4] to-[#dc2626]" />
-          
-          {editingProject && (
-            <div className="p-8 pt-7 h-[85vh] overflow-y-auto custom-scrollbar">
-              <div className="flex justify-between items-start mb-6">
-                <div className="flex items-center gap-4">
-                   <div className="w-14 h-14 bg-[#e0f7fa] rounded-2xl flex items-center justify-center text-[#00BCD4] shadow-sm">
-                      <FolderKanban className="w-7 h-7" />
-                   </div>
-                   <div>
-                      <h2 className="text-[20px] font-black text-[#1e293b] leading-tight">Paramètres du projet</h2>
-                      <p className="text-[12px] font-bold text-slate-400 mt-0.5">Modifier la configuration et l'équipe</p>
-                   </div>
-                </div>
-                <button type="button" onClick={() => setEditingProject(null)} className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors shrink-0">
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 items-start">
+        {/* PROJECTS GRID (xl:col-span-9) */}
+        <div className="xl:col-span-9 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {projects.map(project => {
+          const getStatusDisplay = (status: string) => {
+            if (status === 'ON_TRACK') return { label: 'Active Quest', color: 'text-emerald-500', bg: 'bg-emerald-500/10', bar: 'bg-emerald-500', glow: 'shadow-[0_0_15px_rgba(16,185,129,0.2)]' }
+            if (status === 'AT_RISK') return { label: 'Danger Zone', color: 'text-amber-500', bg: 'bg-amber-500/10', bar: 'bg-amber-500', glow: 'shadow-[0_0_15px_rgba(245,158,11,0.2)]' }
+            if (status === 'DELAYED') return { label: 'Critical Path', color: 'text-rose-500', bg: 'bg-rose-500/10', bar: 'bg-rose-500', glow: 'shadow-[0_0_15px_rgba(244,63,94,0.2)]' }
+            return { label: 'Side Quest', color: 'text-sky-500', bg: 'bg-sky-500/10', bar: 'bg-sky-500', glow: 'shadow-[0_0_15px_rgba(14,165,233,0.2)]' }
+          }
+          const st = getStatusDisplay(project.status)
+          let dateStr = 'No deadline'
+          if (project.timeline_end) {
+            dateStr = new Date(project.timeline_end).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
+          }
+          const totalTasks = project.stats?.total_tasks || 0
+          const potentialXP = (totalTasks * 100) + 500;
 
-              <form onSubmit={handleUpdateProject} className="space-y-6">
-                <div className="grid gap-2">
-                  <Label className="text-[11px] font-black uppercase tracking-wider text-slate-500">Nom du Projet</Label>
-                  <Input 
-                    className="h-12 border-slate-100 bg-slate-50/50 rounded-xl font-bold text-[#1e293b] px-4 shadow-sm" 
-                    value={editingProject.name} 
-                    onChange={(e) => setEditingProject(p => p ? {...p, name: e.target.value} : null)} 
-                    required 
-                  />
-                </div>
+          return (
+            <Link href={`/projects/${project.id}`} key={project.id}>
+              <motion.div
+                whileHover={{ y: -6, scale: 1.015 }}
+                className="group relative flex flex-col min-h-0 rounded-[2rem] overflow-hidden cursor-pointer transition-all duration-300 border border-sky-100/60 shadow-xl"
+                style={{ background: 'linear-gradient(160deg, #dff4fb 0%, #e8f7fc 35%, #d6eefc 65%, #cde8f8 100%)' }}
+              >
+                {/* Top status color strip */}
+                <div className={`absolute top-0 inset-x-0 h-1 ${st.bar} opacity-80 z-20`} />
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="grid gap-2">
-                    <Label className="text-[11px] font-black uppercase tracking-wider text-slate-500">Statut</Label>
-                    <Select value={editingProject.status} onValueChange={(v) => setEditingProject(p => p ? {...p, status: v || ""} : null)}>
-                      <SelectTrigger className="h-12 border-slate-100 bg-slate-50/50 rounded-xl font-bold text-[#1e293b] px-4 shadow-sm"><SelectValue/></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="ON_TRACK" className="font-bold">En cours</SelectItem>
-                        <SelectItem value="AT_RISK" className="font-bold">À Risque</SelectItem>
-                        <SelectItem value="DELAYED" className="font-bold">En retard</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="grid gap-2">
-                    <Label className="text-[11px] font-black uppercase tracking-wider text-slate-500">Date Limite</Label>
-                    <Input 
-                      type="date" 
-                      className="h-12 border-slate-100 bg-slate-50/50 rounded-xl font-bold text-[#1e293b] px-4 shadow-sm" 
-                      value={editingProject.timeline_end ? new Date(editingProject.timeline_end).toISOString().slice(0, 10) : ""} 
-                      onChange={(e) => setEditingProject(p => p ? {...p, timeline_end: e.target.value} : null)} 
+                {/* Subtle star sparkles */}
+                <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-[2rem]">
+                  {[
+                    { top: '12%', left: '80%', size: 3, opacity: 0.5 },
+                    { top: '28%', left: '15%', size: 2, opacity: 0.4 },
+                    { top: '55%', left: '90%', size: 2.5, opacity: 0.45 },
+                    { top: '70%', left: '40%', size: 2, opacity: 0.35 },
+                    { top: '85%', left: '70%', size: 3.5, opacity: 0.5 },
+                    { top: '40%', left: '55%', size: 2, opacity: 0.3 },
+                    { top: '18%', left: '45%', size: 2.5, opacity: 0.4 },
+                    { top: '90%', left: '20%', size: 2, opacity: 0.35 },
+                  ].map((star, i) => (
+                    <motion.div
+                      key={i}
+                      animate={{ opacity: [star.opacity, star.opacity * 0.3, star.opacity], scale: [1, 1.4, 1] }}
+                      transition={{ duration: 2 + i * 0.4, repeat: Infinity, delay: i * 0.3 }}
+                      className="absolute rounded-full bg-white"
+                      style={{ top: star.top, left: star.left, width: star.size, height: star.size, boxShadow: `0 0 4px rgba(255,255,255,0.9)` }}
                     />
-                  </div>
+                  ))}
                 </div>
 
-                {/* Hide text area visually to keep payload consistent but follow new design */}
-                <textarea 
-                  className="hidden" 
-                  value={editingProject.description || ""} 
-                  onChange={(e) => setEditingProject(p => p ? {...p, description: e.target.value} : null)} 
-                />
-                
-                <div className="grid gap-2 hidden">
-                  <Label>Avancement (%)</Label>
-                  <Input type="number" min="0" max="100" value={editingProject.progress_percentage?.toString() || "0"} onChange={(e) => setEditingProject(p => p ? {...p, progress_percentage: parseInt(e.target.value) || 0} : null)} />
-                </div>
-
-                <div className="border border-slate-100/80 rounded-2xl p-5 bg-white shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] relative overflow-hidden">
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-[#00BCD4]/5 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none" />
-                  
-                  <div className="flex items-center gap-2 mb-6">
-                    <Users className="w-5 h-5 text-[#00BCD4]" />
-                    <h3 className="font-black text-[15px] text-[#1e293b]">Équipe et Responsabilités</h3>
-                  </div>
-
-                  <div className="space-y-6 relative z-10">
-                    <div className="grid gap-3">
-                      <Label className="text-[10px] font-black uppercase tracking-wider text-slate-400">Team Leader (Chef de projet)</Label>
-                      <Select value={editingProject.lead_id || "none"} onValueChange={(v) => setEditingProject(p => p ? { ...p, lead_id: v === "none" ? "" : v } as Project : null)}>
-                        <SelectTrigger className="h-12 border-[#e0f7fa] bg-[#e0f7fa]/30 text-[#00BCD4] rounded-xl font-bold shadow-sm px-4">
-                          <SelectValue placeholder="-- Aucun Team Leader défini --">
-                            {editingProject.lead_id && editingProject.lead_id !== "none"
-                              ? members.find(m => m.id === editingProject.lead_id)?.full_name || "Chargement..."
-                              : "-- Aucun Team Leader défini --"}
-                          </SelectValue>
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none" className="font-bold text-slate-400 italic">-- Aucun Team Leader défini --</SelectItem>
-                          {members.map(m => (
-                            <SelectItem key={m.id} value={m.id} className="font-bold">{m.full_name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                <div className="relative z-20 p-6 flex flex-col gap-4">
+                  {/* Status Badge */}
+                  <div className="flex items-center">
+                    <div className={`px-3 py-1.5 rounded-xl ${st.bg} ${st.color} flex items-center gap-2 backdrop-blur-sm`}>
+                      <div className={`w-1.5 h-1.5 rounded-full ${st.bar} animate-pulse`} />
+                      <span className="text-[10px] font-black uppercase tracking-wider">{st.label}</span>
                     </div>
+                  </div>
 
-                    <div className="grid gap-3">
-                      <Label className="text-[10px] font-black uppercase tracking-wider text-slate-400">Membres Assignés</Label>
-                      <div className="max-h-[220px] overflow-y-auto space-y-2.5 pr-2 custom-scrollbar">
-                        {members.map(m => {
-                          const isSelected = editingProject.team_members?.includes(m.id)
-                          return (
-                            <label key={m.id} className="flex items-center gap-4 p-3.5 rounded-xl border border-slate-100 bg-slate-50/50 hover:bg-slate-50 hover:border-slate-200 transition-all cursor-pointer group shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)]">
-                              <input 
-                                type="checkbox"
-                                className="w-4 h-4 rounded border-slate-300 text-[#00BCD4] focus:ring-[#00BCD4] focus:ring-offset-0 bg-white shrink-0 cursor-pointer"
-                                checked={isSelected}
-                                onChange={(e) => {
-                                  setEditingProject(p => {
-                                    if (!p) return null
-                                    const current = p.team_members || []
-                                    const updated = e.target.checked ? Array.from(new Set([...current, m.id])) : current.filter(id => id !== m.id)
-                                    return { ...p, team_members: updated }
-                                  })
-                                }}
-                              />
-                              <div className="w-[36px] h-[36px] rounded-xl bg-[#00BCD4] text-white flex items-center justify-center font-black text-xs shadow-sm shrink-0">
-                                {m.full_name.substring(0, 2).toUpperCase()}
-                              </div>
-                              <div className="flex flex-col min-w-0">
-                                <span className="font-black text-[13px] text-[#1e293b] leading-tight truncate">{m.full_name}</span>
-                                <span className="text-[11px] font-bold text-slate-400 leading-tight mt-0.5 truncate">{m.skills?.join(", ") || m.role}</span>
-                              </div>
-                            </label>
-                          )
-                        })}
+                  {/* Title */}
+                  <h3 className="text-[17px] font-black text-slate-900 leading-tight drop-shadow-sm">
+                    {project.name}
+                  </h3>
+
+                  {/* XP + Deadline */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Récompense</p>
+                      <div className="flex items-center gap-1.5 text-violet-700">
+                        <Zap size={13} className="fill-violet-600" />
+                        <span className="text-sm font-black">+{potentialXP} XP</span>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Échéance</p>
+                      <div className="flex items-center gap-1 justify-end text-slate-700">
+                        <Clock size={12} />
+                        <span className="text-sm font-black">{dateStr}</span>
                       </div>
                     </div>
                   </div>
-                </div>
 
-                <div className="flex justify-end gap-3 pt-3">
-                  <Button type="button" variant="outline" className="flex-1 h-14 rounded-xl font-black text-slate-600 border-slate-200 hover:bg-slate-50 text-[15px]" onClick={() => setEditingProject(null)}>
-                    Annuler
-                  </Button>
-                  <Button type="submit" className="flex-[1.5] h-14 rounded-xl font-black bg-[#00BCD4] hover:bg-[#0097a7] text-white flex justify-center items-center gap-2 text-[15px] shadow-[0_4px_14px_0_rgba(0,188,212,0.35)]">
-                    <CheckCircle2 className="w-[18px] h-[18px]" />
-                    Enregistrer les modifications
-                  </Button>
+                  {/* Avancement du projet — Gamified */}
+                  <div className="space-y-2 pb-1">
+                    <div className="flex justify-between items-center">
+                      <span className="text-[9px] font-black text-slate-600 uppercase tracking-widest">⚡ Avancement</span>
+                      <span className="text-sm font-black text-[#0097a7]" style={{ textShadow: '0 0 8px rgba(0,188,212,0.5)' }}>{project.progress_percentage}%</span>
+                    </div>
+                    {/* Orb progress bar */}
+                    <div className="flex items-center gap-0.5 bg-black/10 rounded-full px-2 py-1 border border-white/30 backdrop-blur-sm">
+                      {Array.from({ length: 10 }).map((_, i) => {
+                        const filled = i < Math.round(project.progress_percentage / 10)
+                        return (
+                          <motion.div
+                            key={i}
+                            animate={filled ? { scale: [1, 1.2, 1], opacity: [0.8, 1, 0.8] } : {}}
+                            transition={{ duration: 1.5, delay: i * 0.1, repeat: Infinity }}
+                            className="flex-1 h-2 rounded-full transition-all duration-500"
+                            style={{
+                              background: filled ? '#00d4ff' : 'rgba(0,212,255,0.2)',
+                              boxShadow: filled ? '0 0 8px rgba(0,212,255,0.9), 0 0 3px rgba(0,212,255,0.6)' : '0 0 2px rgba(0,212,255,0.2)'
+                            }}
+                          />
+                        )
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Action Buttons */}
+                  {isManager && (
+                    <div className="flex justify-end gap-2 pt-1 border-t border-white/40">
+                      <Button variant="ghost" size="icon"
+                        className="h-8 w-8 rounded-xl bg-white/60 text-amber-600 hover:bg-white/80 backdrop-blur-sm"
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); setEditingProject(project); }}>
+                        <Edit3 size={14} />
+                      </Button>
+                      <Button variant="ghost" size="icon"
+                        className="h-8 w-8 rounded-xl bg-white/60 text-rose-500 hover:bg-white/80 backdrop-blur-sm"
+                        onClick={(e) => handleDeleteProject(e, project.id, project.name)}>
+                        <Trash2 size={14} />
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            </Link>
+          )
+        })}
+        </div>
+
+        {/* WEEKLY LEADERBOARD CARD (xl:col-span-3) - Far right placement */}
+        <div className="xl:col-span-3 space-y-4 pt-2">
+           <LeaderboardWidget />
+        </div>
+      </div>
+
+      {/* MODALS */}
+      <Dialog open={!!editingProject} onOpenChange={(open) => !open && setEditingProject(null)}>
+        <DialogContent className="sm:max-w-[480px] p-0 overflow-hidden border-none rounded-2xl bg-white shadow-2xl">
+          <div className="h-2 w-full bg-[#00BCD4]" />
+          {editingProject && (
+            <div className="p-8 space-y-5">
+              <h2 className="text-xl font-black text-[#1e293b]">Modifier Projet</h2>
+              <form onSubmit={handleUpdateProject} className="space-y-4">
+                <div className="space-y-1.5">
+                   <Label className="uppercase text-[10px] font-black text-slate-500">Nom du projet</Label>
+                   <Input value={editingProject.name} onChange={(e) => setEditingProject({...editingProject, name: e.target.value})} className="font-bold" />
+                </div>
+                <div className="space-y-1.5">
+                   <Label className="uppercase text-[10px] font-black text-slate-500">Description</Label>
+                   <Textarea value={editingProject.description || ''} onChange={(e) => setEditingProject({...editingProject, description: e.target.value})} rows={3} className="font-medium resize-none" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                     <Label className="uppercase text-[10px] font-black text-slate-500">Statut</Label>
+                     <Select value={editingProject.status} onValueChange={(v) => setEditingProject({...editingProject, status: v})}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="ON_TRACK" className="font-bold">Active Quest ✅</SelectItem>
+                          <SelectItem value="AT_RISK" className="font-bold">Danger Zone ⚠️</SelectItem>
+                          <SelectItem value="DELAYED" className="font-bold">Critical Path 🔴</SelectItem>
+                        </SelectContent>
+                     </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                     <Label className="uppercase text-[10px] font-black text-slate-500">Progression (%)</Label>
+                     <Input type="number" min={0} max={100} value={editingProject.progress_percentage} onChange={(e) => setEditingProject({...editingProject, progress_percentage: Number(e.target.value)})} className="font-bold" />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                   <Label className="uppercase text-[10px] font-black text-slate-500">Date limite</Label>
+                   <Input type="date" value={editingProject.timeline_end ? new Date(editingProject.timeline_end).toISOString().split('T')[0] : ''} onChange={(e) => setEditingProject({...editingProject, timeline_end: e.target.value})} className="font-bold" />
+                </div>
+                <div className="space-y-1.5">
+                   <Label className="uppercase text-[10px] font-black text-slate-500">Chef de projet</Label>
+                    <Select value={editingProject.lead_id || ''} onValueChange={(v) => setEditingProject({...editingProject, lead_id: v})}>
+                       <SelectTrigger className="font-bold border-slate-200"><SelectValue placeholder="Sélectionner un chef" /></SelectTrigger>
+                       <SelectContent className="bg-white border-slate-200 text-slate-900 shadow-2xl rounded-2xl">
+                         {members.map(m => (
+                           <SelectItem key={m.id} value={m.id} className="font-bold focus:bg-slate-100 focus:text-slate-900 cursor-pointer">
+                             {m.full_name}
+                           </SelectItem>
+                         ))}
+                       </SelectContent>
+                    </Select>
+                </div>
+                <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                   <Button variant="outline" className="font-bold rounded-xl" onClick={() => setEditingProject(null)}>Annuler</Button>
+                   <Button type="submit" className="bg-[#00BCD4] hover:bg-[#0097a7] text-white font-black rounded-xl px-6">Enregistrer</Button>
                 </div>
               </form>
             </div>
@@ -315,147 +347,16 @@ export default function ProjectsPage() {
       </Dialog>
 
       <Dialog open={!!projectToDelete} onOpenChange={(open) => !open && setProjectToDelete(null)}>
-        <DialogContent className="sm:max-w-[420px] p-0 overflow-hidden border-none rounded-2xl bg-white shadow-2xl [&>button]:hidden">
-          {/* Top red header line */}
-          <div className="h-1.5 w-full bg-[#dc2626]" />
-          
-          <div className="p-8 flex flex-col items-center text-center">
-            {/* Alert Icon */}
-            <div className="w-16 h-16 bg-red-50 rounded-3xl flex items-center justify-center mb-5 text-[#dc2626] ring-1 ring-red-100 shadow-[0_0_15px_rgba(220,38,38,0.1)]">
-              <AlertTriangle className="w-8 h-8" />
-            </div>
-
-            {/* Title */}
-            <h2 className="text-[22px] font-black text-[#1e293b] mb-6">Supprimer ce projet ?</h2>
-
-            {/* Project Box */}
-            <div className="w-full bg-[#fef2f2] border border-red-100 rounded-xl p-4 flex items-center gap-4 mb-6 shadow-inner">
-              <div className="w-12 h-12 bg-[#dc2626] rounded-lg flex items-center justify-center shrink-0 shadow-md">
-                <FolderKanban className="w-6 h-6 text-white" />
-              </div>
-              <div className="text-left flex flex-col justify-center">
-                <span className="font-black text-sm text-[#1e293b] line-clamp-1">{projectToDelete?.name}</span>
-                <span className="text-[10px] font-black uppercase text-[#dc2626] tracking-wider mt-0.5">PROJET COMPLET</span>
-              </div>
-            </div>
-
-            {/* Warning Text */}
-            <p className="text-[13px] text-slate-500 font-medium leading-relaxed mb-8 px-2">
-              Cette action est <span className="font-bold text-[#dc2626]">irréversible</span>. Toutes les tâches associées, l'historique et les affectations seront définitivement supprimés de la plateforme.
-            </p>
-
-            {/* Buttons */}
-            <div className="w-full flex gap-3">
-              <Button 
-                variant="outline" 
-                className="flex-1 rounded-xl py-6 font-bold text-slate-700 border-slate-200 hover:bg-slate-50 text-[15px]"
-                onClick={() => setProjectToDelete(null)}
-              >
-                Annuler
-              </Button>
-              <Button 
-                className="flex-[1.5] rounded-xl py-6 font-bold bg-[#dc2626] hover:bg-[#b91c1c] text-white flex items-center justify-center gap-2 text-[15px] shadow-[0_4px_14px_0_rgba(220,38,38,0.39)]"
-                onClick={confirmDeleteProject}
-              >
-                <Trash2 className="w-5 h-5" />
-                Supprimer
-              </Button>
-            </div>
+        <DialogContent className="sm:max-w-[400px] p-8 text-center bg-white rounded-3xl border-none shadow-2xl">
+          <AlertTriangle size={48} className="text-rose-500 mx-auto mb-4" />
+          <h2 className="text-xl font-black mb-2">Confirmer Suppression</h2>
+          <p className="text-sm text-slate-500 font-bold mb-6 italic">Supprimer le projet "{projectToDelete?.name}" ?</p>
+          <div className="flex gap-4">
+             <Button variant="outline" className="flex-1 rounded-xl font-bold" onClick={() => setProjectToDelete(null)}>Annuler</Button>
+             <Button className="flex-1 bg-rose-500 hover:bg-rose-600 text-white rounded-xl font-bold" onClick={confirmDeleteProject}>Supprimer</Button>
           </div>
         </DialogContent>
       </Dialog>
-
-      <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {projects.length === 0 ? (
-          <div className="col-span-full py-8 text-center text-slate-500 border-2 border-dashed border-slate-200 rounded-xl text-xs font-bold">
-            Aucun projet trouvé.
-          </div>
-        ) : (
-          projects.map(project => {
-            const getStatusDisplay = (status: string) => {
-              if (status === 'ON_TRACK') return { label: 'En cours', color: 'text-[#00BCD4]', bg: 'bg-[#00BCD4]/10', bar: 'bg-[#00BCD4]' }
-              if (status === 'AT_RISK') return { label: 'À Risque', color: 'text-amber-500', bg: 'bg-amber-50', bar: 'bg-amber-500' }
-              if (status === 'DELAYED') return { label: 'En retard', color: 'text-red-500', bg: 'bg-red-50', bar: 'bg-red-500' }
-              return { label: status, color: 'text-[#00BCD4]', bg: 'bg-[#00BCD4]/10', bar: 'bg-[#00BCD4]' }
-            }
-            const st = getStatusDisplay(project.status)
-            
-            // Format deadline date if available, else a fallback or "Indéfini"
-            let dateStr = 'Indéfini'
-            if (project.timeline_end) {
-               dateStr = new Date(project.timeline_end).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
-            }
-
-            const doneTasks = project.stats?.done_tasks || 0
-            const totalTasks = project.stats?.total_tasks || 0
-
-            return (
-              <Link href={`/projects/${project.id}`} key={project.id}>
-                <Card className="hover:shadow-lg transition-all duration-300 cursor-pointer h-full flex flex-col rounded-xl border-slate-100/60 overflow-hidden group hover:-translate-y-1 bg-white shadow-sm ring-1 ring-slate-100/50">
-                  <CardContent className="p-6 flex flex-col h-full relative">
-                    <div className="flex justify-between items-start">
-                      <div className="p-2 rounded-[10px] bg-[#00BCD4]/10 text-[#00BCD4]">
-                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"></path><path d="M8 10v4"></path><path d="M12 10v4"></path><path d="M16 10v4"></path></svg>
-                      </div>
-                      <span className={`text-[11px] font-black uppercase px-3 py-1 rounded-full ${st.bg} ${st.color}`}>
-                        {st.label}
-                      </span>
-                    </div>
-
-                    <div className="mt-5 mb-1.5">
-                       <h3 className="text-[18px] font-black text-[#1e293b] leading-tight group-hover:text-[#00BCD4] transition-colors line-clamp-2">
-                         {project.name}
-                       </h3>
-                    </div>
-
-                    <div className="flex items-center gap-2.5 text-[11px] font-bold text-slate-400 mb-5">
-                       <span>{doneTasks}/{totalTasks} tâches terminées</span>
-                       <div className="flex items-center gap-1 text-[#00BCD4]">
-                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-                         {dateStr}
-                       </div>
-                    </div>
-
-                    <div className="mt-auto">
-                      <div className="flex justify-between items-end mb-2">
-                        <span className="text-[12px] font-bold text-slate-500">Avancement</span>
-                        <span className={`text-[12px] font-black ${st.color}`}>{project.progress_percentage}%</span>
-                      </div>
-                      <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
-                        <div
-                          className={`h-full ${st.bar} rounded-full transition-all duration-500`}
-                          style={{ width: `${project.progress_percentage}%` }}
-                        ></div>
-                      </div>
-                    </div>
-
-                    {isManager && (
-                      <div className="flex justify-end gap-2 mt-4">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 rounded-full bg-slate-50 text-amber-500 hover:bg-amber-100 hover:text-amber-600 transition-colors"
-                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); setEditingProject(project); }}
-                        >
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 rounded-full bg-red-50 text-red-500 hover:bg-red-100 hover:text-red-600 transition-colors"
-                          onClick={(e) => handleDeleteProject(e, project.id, project.name)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </Link>
-            )
-          })
-        )}
-      </div>
     </div>
   )
 }

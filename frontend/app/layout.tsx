@@ -21,8 +21,9 @@ export default function RootLayout({
     <html
       lang="en"
       className={`${dmSans.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
-      <body className="min-h-full flex flex-col font-sans">{children}</body>
+    <body className="h-full overflow-hidden flex flex-col font-sans">{children}</body>
     </html>
   );
 }

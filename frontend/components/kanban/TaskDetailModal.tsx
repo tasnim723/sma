@@ -105,11 +105,11 @@ export default function TaskDetailModal({ task, isOpen, teamMembers, onClose, on
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto p-0 rounded-2xl border-none shadow-2xl">
-        <div className="bg-slate-50 p-6 border-b border-slate-200">
+      <DialogContent className="sm:max-w-[750px] max-h-[95vh] overflow-y-auto overflow-x-hidden p-0 rounded-3xl border-none shadow-2xl custom-scrollbar">
+        <div className="bg-slate-50 p-5 px-6 border-b border-slate-200">
           <DialogHeader>
             <div className="flex justify-between items-start pr-8">
-               <DialogTitle className="text-2xl font-bold text-slate-900 leading-tight">
+               <DialogTitle className="text-xl font-bold text-slate-900 leading-tight">
                  {task.title}
                </DialogTitle>
             </div>
@@ -119,10 +119,10 @@ export default function TaskDetailModal({ task, isOpen, teamMembers, onClose, on
           </DialogHeader>
         </div>
 
-        <div className="p-8 space-y-8">
+        <div className="p-6 space-y-5">
           {/* AI Review Feedback if exists */}
           {editedTask.review_feedback && (
-            <div className={`p-4 rounded-xl border flex flex-col gap-2 ${editedTask.status === 'DONE' ? 'bg-emerald-50 border-emerald-100 text-emerald-800' : 'bg-amber-50 border-amber-100 text-amber-800'}`}>
+            <div className={`p-3 rounded-xl border flex flex-col gap-2 ${editedTask.status === 'DONE' ? 'bg-emerald-50 border-emerald-100 text-emerald-800' : 'bg-amber-50 border-amber-100 text-amber-800'}`}>
               <div className="flex items-center gap-2 font-bold text-xs uppercase tracking-wider">
                  <div className={`p-1 rounded ${editedTask.status === 'DONE' ? 'bg-emerald-500 text-white' : 'bg-amber-500 text-white'}`}>AI</div> 
                  Retour de l'Agent de Revue
@@ -132,61 +132,85 @@ export default function TaskDetailModal({ task, isOpen, teamMembers, onClose, on
           )}
 
           {/* Description Section */}
-          <div className="space-y-3">
-            <div className="flex items-center gap-2 text-slate-700 font-bold text-sm uppercase tracking-wider">
-               <FileText size={18} className="text-blue-600" /> Description
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-slate-700 font-bold text-xs uppercase tracking-wider">
+               <FileText size={16} className="text-blue-600" /> Description
             </div>
             <Textarea
               disabled={!isManager}
-              className="min-h-[120px] bg-slate-50 border-slate-200 text-slate-800 focus:bg-white transition-colors text-sm leading-relaxed"
+              className="min-h-[80px] bg-slate-50 border-slate-200 text-slate-800 focus:bg-white transition-colors text-sm leading-relaxed"
               placeholder="Ajouter une description plus détaillée..."
               value={editedTask.description || ""}
               onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setEditedTask({ ...editedTask, description: e.target.value })}
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-8 text-sm">
+          <div className="flex flex-col gap-4 text-sm">
             {/* Priority and Deadline */}
-            <div className="space-y-3">
-               <div className="flex items-center gap-2 text-slate-700 font-bold uppercase tracking-wider text-[11px]">
-                  Priorité
-               </div>
-                <Select 
-                  disabled={!isManager}
-                  value={(editedTask.priority as string) || "MEDIUM"} 
-                  onValueChange={(v: string | null) => v && setEditedTask({ ...editedTask, priority: v })}
-                >
-                 <SelectTrigger className="bg-slate-50 border-slate-200">
-                   <SelectValue placeholder="Priorité" />
-                 </SelectTrigger>
-                 <SelectContent>
-                   <SelectItem value="LOW">Basse</SelectItem>
-                   <SelectItem value="MEDIUM">Moyenne</SelectItem>
-                   <SelectItem value="HIGH">Haute</SelectItem>
-                   <SelectItem value="URGENT">Urgente</SelectItem>
-                 </SelectContent>
-               </Select>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                 <div className="flex items-center gap-2 text-slate-700 font-bold uppercase tracking-wider text-[11px]">
+                    Priorité
+                 </div>
+                  <Select 
+                    disabled={!isManager}
+                    value={(editedTask.priority as string) || "MEDIUM"} 
+                    onValueChange={(v: string | null) => v && setEditedTask({ ...editedTask, priority: v })}
+                  >
+                   <SelectTrigger className="bg-slate-50 border-slate-200 h-9">
+                     <SelectValue placeholder="Priorité" />
+                   </SelectTrigger>
+                   <SelectContent>
+                     <SelectItem value="LOW">Basse</SelectItem>
+                     <SelectItem value="MEDIUM">Moyenne</SelectItem>
+                     <SelectItem value="HIGH">Haute</SelectItem>
+                     <SelectItem value="URGENT">Urgente</SelectItem>
+                   </SelectContent>
+                 </Select>
+              </div>
+
+              <div className="space-y-2">
+                 <div className="flex items-center gap-2 text-slate-700 font-bold uppercase tracking-wider text-[11px]">
+                    Échéance
+                 </div>
+                 <Input
+                   disabled={!isManager}
+                   type="date"
+                   className="bg-slate-50 border-slate-200 h-9"
+                   value={editedTask.deadline ? (editedTask.deadline as string).split('T')[0] : ""}
+                   onChange={(e: ChangeEvent<HTMLInputElement>) => setEditedTask({ ...editedTask, deadline: e.target.value })}
+                 />
+              </div>
             </div>
 
-            <div className="space-y-3">
+            <div className="space-y-2">
                <div className="flex items-center gap-2 text-slate-700 font-bold uppercase tracking-wider text-[11px]">
-                  Échéance
+                  Statut
                </div>
-               <Input
-                 disabled={!isManager}
-                 type="date"
-                 className="bg-slate-50 border-slate-200"
-                 value={editedTask.deadline ? (editedTask.deadline as string).split('T')[0] : ""}
-                 onChange={(e: ChangeEvent<HTMLInputElement>) => setEditedTask({ ...editedTask, deadline: e.target.value })}
-               />
+               <Select 
+                  disabled={!isManager}
+                  value={(editedTask.status as string) || "TODO"} 
+                  onValueChange={(v: string | null) => v && setEditedTask({ ...editedTask, status: v })}
+                >
+                 <SelectTrigger className="bg-slate-50 border-slate-200 w-full sm:w-1/2 h-9">
+                   <SelectValue placeholder="Statut" />
+                 </SelectTrigger>
+                 <SelectContent>
+                   <SelectItem value="BACKLOG">Backlog</SelectItem>
+                   <SelectItem value="TODO">À faire</SelectItem>
+                   <SelectItem value="IN_PROGRESS">En cours</SelectItem>
+                   <SelectItem value="REVIEW">En revue</SelectItem>
+                   <SelectItem value="DONE">Terminé</SelectItem>
+                 </SelectContent>
+               </Select>
             </div>
           </div>
 
           {/* Assignees Section */}
-          <div className="space-y-4">
+          <div className="space-y-3">
             <div className="flex items-center justify-between">
-               <div className="flex items-center gap-2 text-slate-700 font-bold text-sm uppercase tracking-wider">
-                  <Clock size={18} className="text-blue-600" /> Assignés
+               <div className="flex items-center gap-2 text-slate-700 font-bold text-xs uppercase tracking-wider">
+                  <Clock size={16} className="text-blue-600" /> Assignés
                </div>
             </div>
             
@@ -227,10 +251,10 @@ export default function TaskDetailModal({ task, isOpen, teamMembers, onClose, on
           </div>
 
           {/* Attachments Section (Délivrables) */}
-          <div className="space-y-4">
+          <div className="space-y-3">
             <div className="flex items-center justify-between">
-               <div className="flex items-center gap-2 text-slate-700 font-bold text-sm uppercase tracking-wider">
-                  <Paperclip size={18} className="text-blue-600" /> Attachments (Délivrables)
+               <div className="flex items-center gap-2 text-slate-700 font-bold text-xs uppercase tracking-wider">
+                  <Paperclip size={16} className="text-blue-600" /> Attachments (Délivrables)
                </div>
             </div>
             
@@ -288,33 +312,38 @@ export default function TaskDetailModal({ task, isOpen, teamMembers, onClose, on
           </div>
         </div>
 
-        <DialogFooter className="p-6 bg-slate-50 border-t border-slate-200 flex sm:justify-between items-center sm:gap-2">
-          <div className="flex items-center gap-4">
+        <DialogFooter className="p-5 px-6 bg-slate-50 border-t border-slate-200 flex flex-wrap sm:justify-between items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             {isManager && (
               <Button 
                 variant="ghost" 
                 onClick={() => onDelete(task._id)}
-                className="text-red-500 hover:text-red-600 hover:bg-red-50 font-bold border border-transparent hover:border-red-100 rounded-xl"
+                className="text-red-500 hover:text-red-600 hover:bg-red-50 px-3 h-9 font-bold border border-transparent hover:border-red-100 rounded-xl"
               >
-                <Trash2 size={16} className="mr-2" /> Supprimer la Tâche
+                <Trash2 size={16} /> <span className="hidden sm:inline-block ml-2">Supprimer la Tâche</span>
               </Button>
             )}
             {isManager && task.status === "REVIEW" && (
-              <div className="flex gap-2 bg-slate-200/50 p-1 rounded-xl border border-slate-200">
-                <Button onClick={() => { onUpdate(task._id, {status: "DONE"}); onClose(); }} className="bg-emerald-500 hover:bg-emerald-600 shadow-sm text-white h-9 px-4 text-xs font-bold rounded-lg transition-colors">👍 Approuver</Button>
-                <Button onClick={() => { onUpdate(task._id, {status: "IN_PROGRESS"}); onClose(); }} variant="ghost" className="text-red-600 hover:bg-red-50 h-9 px-4 text-xs font-bold rounded-lg transition-colors bg-white shadow-sm border border-slate-200">👎 Rejeter</Button>
+              <div className="flex gap-2 bg-slate-200/50 p-1 rounded-xl border border-slate-200 shrink-0">
+                <Button onClick={() => { onUpdate(task._id, {status: "DONE"}); onClose(); }} className="bg-emerald-500 hover:bg-emerald-600 shadow-sm text-white h-8 px-3 text-xs font-bold rounded-lg transition-colors">👍 Approuver</Button>
+                <Button onClick={() => { onUpdate(task._id, {status: "IN_PROGRESS"}); onClose(); }} variant="ghost" className="text-red-600 hover:bg-red-50 h-8 px-3 text-xs font-bold rounded-lg transition-colors bg-white shadow-sm border border-slate-200">👎 Rejeter</Button>
               </div>
             )}
             {!isManager && isAssigned && task.status === "TODO" && (
-              <Button onClick={() => { onUpdate(task._id, {status: "IN_PROGRESS"}); onClose(); }} className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm h-9 px-4 text-xs font-bold rounded-lg transition-colors">
-                Démarrer le travail (Déplacer vers En cours)
+              <Button onClick={() => { onUpdate(task._id, {status: "IN_PROGRESS"}); onClose(); }} className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm h-9 px-4 text-xs font-bold rounded-lg transition-colors whitespace-nowrap">
+                Démarrer (En cours)
+              </Button>
+            )}
+            {task.status === "IN_PROGRESS" && (isManager || isAssigned) && (
+              <Button onClick={() => { onUpdate(task._id, {status: "REVIEW"}); onClose(); }} className="bg-purple-600 hover:bg-purple-700 text-white shadow-sm h-9 px-4 text-xs font-bold rounded-lg transition-colors whitespace-nowrap">
+                Soumettre pour revue
               </Button>
             )}
             {task.status === "REVIEW" && (
               <Button 
                 onClick={handleAIReview} 
                 disabled={isAiReviewing}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-md border-none rounded-xl font-bold h-9 px-4"
+                className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-md border-none rounded-xl font-bold h-9 px-4 shrink-0"
               >
                 {isAiReviewing ? (
                   <div className="flex items-center gap-2">
@@ -329,12 +358,12 @@ export default function TaskDetailModal({ task, isOpen, teamMembers, onClose, on
               </Button>
             )}
           </div>
-          <div className="flex gap-3">
-            <Button variant="outline" onClick={onClose} className="rounded-xl font-bold border-slate-200 hover:bg-white">
+          <div className="flex gap-2 shrink-0">
+            <Button variant="outline" onClick={onClose} className="rounded-xl h-9 font-bold border-slate-200 hover:bg-white text-xs px-4">
               {isManager ? "Annuler" : "Fermer"}
             </Button>
             {isManager && (
-              <Button onClick={handleSave} className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl px-8 font-bold shadow-lg shadow-indigo-100 transition-all">
+              <Button onClick={handleSave} className="bg-indigo-600 hover:bg-indigo-700 text-white h-9 rounded-xl px-6 text-xs font-bold shadow-md shadow-indigo-100 transition-all">
                 Sauvegarder
               </Button>
             )}

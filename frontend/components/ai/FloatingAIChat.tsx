@@ -1,10 +1,12 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
-import { Send, Bot, User as UserIcon, AlertCircle, Mic, MicOff, Trash2, X, MessageSquare, Minimize2, Maximize2 } from "lucide-react"
+import { Send, Bot, User as UserIcon, AlertCircle, Mic, MicOff, Trash2, X, MessageSquare, Paperclip } from "lucide-react"
 import axios from "axios"
+import { motion, AnimatePresence } from "framer-motion"
 import { useAuthStore } from "@/lib/store"
 import { useChatStore, Message } from "@/lib/chatStore"
+import ReactMarkdown from "react-markdown"
 
 const defaultMessage: Message = { role: "ai", content: "I am your AI Orchestrator. How can I help you manage your workspace today?" }
 
@@ -18,33 +20,114 @@ export default function FloatingAIChat() {
   const [currentAction, setCurrentAction] = useState<string | null>(null)
   const token = useAuthStore(state => state.token)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  
+  // Voice Recording State
   const [isListening, setIsListening] = useState(false)
-  const recognitionRef = useRef<any>(null)
+  const [recordingDuration, setRecordingDuration] = useState(0)
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const chunksRef = useRef<Blob[]>([])
+  const streamRef = useRef<MediaStream | null>(null)
+  const timerRef = useRef<any>(null)
+  const shouldDiscardRef = useRef(false)
 
-  useEffect(() => {
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
-    if (SpeechRecognition) {
-      recognitionRef.current = new SpeechRecognition()
-      recognitionRef.current.continuous = false
-      recognitionRef.current.interimResults = false
-      recognitionRef.current.onresult = (event: any) => {
-        const transcript = event.results[0][0].transcript
-        setInput(transcript)
-        setIsListening(false)
-      }
-      recognitionRef.current.onerror = () => setIsListening(false)
-      recognitionRef.current.onend = () => setIsListening(false)
+  // File State
+  const [selectedFile, setSelectedFile] = useState<{ name: string, type: string, base64: string } | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Voice Recording Logic
+  const stopRecording = (discard: boolean = false) => {
+    shouldDiscardRef.current = discard
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      mediaRecorderRef.current.stop()
     }
-  }, [])
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop())
+      streamRef.current = null
+    }
+    clearInterval(timerRef.current)
+    setIsListening(false)
+    setRecordingDuration(0)
+  }
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      streamRef.current = stream
+      const recorder = new MediaRecorder(stream)
+      mediaRecorderRef.current = recorder
+      chunksRef.current = []
+      shouldDiscardRef.current = false
+
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) chunksRef.current.push(e.data)
+      }
+
+      recorder.onstop = async () => {
+        if (shouldDiscardRef.current) {
+          chunksRef.current = []
+          return
+        }
+        const audioBlob = new Blob(chunksRef.current, { type: "audio/webm" })
+        if (audioBlob.size > 1000) { 
+          sendAudioToBackend(audioBlob)
+        }
+      }
+
+      recorder.start()
+      setIsListening(true)
+      setRecordingDuration(0)
+
+      timerRef.current = setInterval(() => {
+        setRecordingDuration(prev => {
+          if (prev >= 59) {
+            stopRecording()
+            return 60
+          }
+          return prev + 1
+        })
+      }, 1000)
+
+    } catch (err) {
+      console.error("Microphone access denied:", err)
+      alert("Microphone access denied.")
+    }
+  }
+
+  const sendAudioToBackend = async (blob: Blob) => {
+    setLoading(true)
+    try {
+      const formData = new FormData()
+      formData.append("file", blob, "vocal.webm")
+      const res = await axios.post("http://localhost:8000/api/ai/voice", formData, {
+        headers: { "Authorization": `Bearer ${token}`, "Content-Type": "multipart/form-data" }
+      })
+
+      if (res.data && res.data.text) {
+        setInput(res.data.text)
+        await handleSendInternal(res.data.text)
+      }
+    } catch (err: any) {
+      console.error("Transcription failed:", err)
+      addMessage({ role: "ai", content: "⚠️ Erreur lors de la transcription vocale." })
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const toggleListening = () => {
-    if (isListening) {
-      recognitionRef.current?.stop()
-      setIsListening(false)
-    } else {
-      recognitionRef.current?.start()
-      setIsListening(true)
+    if (isListening) stopRecording()
+    else startRecording()
+  }
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      const base64 = event.target?.result as string
+      setSelectedFile({ name: file.name, type: file.type, base64: base64 })
     }
+    reader.readAsDataURL(file)
   }
 
   const scrollToBottom = () => {
@@ -59,11 +142,20 @@ export default function FloatingAIChat() {
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!input.trim()) return
+    await handleSendInternal(input, selectedFile)
+  }
 
-    const userMsg: Message = { role: "user", content: input }
+  const handleSendInternal = async (text: string, file: any = null) => {
+    if (!text.trim() && !file) return
+
+    const userMsg: Message = { 
+      role: "user", 
+      content: text + (file ? `\n\n[Attached File: ${file.name}]` : "") 
+    }
+    
     addMessage(userMsg)
     setInput("")
+    setSelectedFile(null)
     setLoading(true)
     setStreamingMessage("")
     setCurrentThinking("")
@@ -78,7 +170,11 @@ export default function FloatingAIChat() {
           "Authorization": `Bearer ${token}`,
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({ message: input, history })
+        body: JSON.stringify({ 
+          message: text, 
+          history,
+          file: file 
+        })
       })
 
       if (!response.body) throw new Error("No response body")
@@ -144,7 +240,7 @@ export default function FloatingAIChat() {
       {isOpen && (
         <div className="mb-6 w-[550px] max-w-[calc(100vw-4rem)] h-[800px] max-h-[calc(100vh-10rem)] bg-white rounded-[3rem] shadow-2xl border border-slate-100 flex flex-col overflow-hidden animate-in slide-in-from-bottom-8 duration-500 ease-out ring-1 ring-slate-900/5">
           {/* Header */}
-          <div className="bg-[#00BCD4] p-6 flex items-center justify-between text-white shadow-lg relative z-10">
+          <div className="bg-[#00BCD4] p-6 flex items-center justify-between text-white shadow-lg relative z-10 shrink-0">
             <div className="flex items-center gap-4">
               <div className="bg-white/20 p-3 rounded-2xl backdrop-blur-xl border border-white/30 shadow-inner">
                 <Bot size={28} />
@@ -157,7 +253,7 @@ export default function FloatingAIChat() {
             <div className="flex items-center gap-2">
               <button 
                 onClick={() => {
-                  if (confirm("Are you sure you want to clear the chat history?")) {
+                  if (confirm("Effacer l'historique ?")) {
                     clearMessages()
                   }
                 }}
@@ -175,22 +271,61 @@ export default function FloatingAIChat() {
             </div>
           </div>
 
-          {/* Messages Area */}
-          <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar bg-[#f8fafc]">
-            {messages.map((m, i) => (
-              <div key={i} className={`flex gap-4 max-w-[90%] ${m.role === 'user' ? 'ml-auto flex-row-reverse' : ''}`}>
-                <div className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 shadow-md
-                  ${m.role === 'user' ? 'bg-[#00BCD4] text-white' : 'bg-white border border-slate-100 text-[#00BCD4]'}`}>
-                  {m.role === 'user' ? <UserIcon size={18} /> : <Bot size={18} />}
+          <div className="flex-1 relative overflow-hidden flex flex-col">
+            <AnimatePresence>
+              {isListening && (
+                <motion.div 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="absolute inset-0 z-50 bg-white/95 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center"
+                >
+                  <div className="relative mb-8">
+                    <motion.div 
+                      animate={{ scale: [1, 1.5], opacity: [0.3, 0] }}
+                      transition={{ duration: 2, repeat: Infinity }}
+                      className="absolute inset-0 rounded-full bg-[#00BCD4]/20"
+                    />
+                    <button 
+                      onClick={() => stopRecording(false)}
+                      className="relative w-20 h-20 bg-white rounded-full flex items-center justify-center shadow-xl border border-slate-100 z-10 cursor-pointer hover:scale-105 transition-transform"
+                    >
+                      <Mic size={32} className="text-[#00BCD4]" />
+                    </button>
+                  </div>
+                  <h4 className="text-xl font-black text-slate-800 mb-2">Je vous écoute...</h4>
+                  <p className="text-slate-500 font-bold text-[10px] uppercase mb-4 tracking-widest">Cliquez sur le micro pour terminer</p>
+                  <div className="text-[11px] font-black text-[#00BCD4] uppercase tracking-widest bg-cyan-50 px-3 py-1 rounded-full border border-cyan-100 mb-8">
+                    {Math.floor(recordingDuration / 60)}:{(recordingDuration % 60).toString().padStart(2, '0')}
+                  </div>
+                  <button
+                    onClick={() => stopRecording(true)}
+                    className="mt-4 px-6 py-2 rounded-xl border border-slate-200 text-slate-500 font-bold text-xs uppercase hover:bg-slate-50 transition-all"
+                  >
+                    Annuler
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Messages Area */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar bg-[#f8fafc]">
+              {messages.length === 0 && (
+                <div className="h-full flex flex-col items-center justify-center text-slate-400 opacity-60">
+                  <Bot size={48} className="mb-4" />
+                  <p className="font-bold text-sm uppercase tracking-[0.2em]">{defaultMessage.content}</p>
                 </div>
-                <div className={`rounded-3xl p-5 text-[15px] font-medium leading-relaxed shadow-sm
-                  ${m.role === 'user'
-                    ? 'bg-[#00BCD4] text-white rounded-tr-sm'
-                    : 'bg-white border border-slate-200/60 text-slate-800 rounded-tl-sm'}`}>
-                  {m.content}
+              )}
+              {messages.map((m, i) => (
+                <div key={i} className={`flex gap-4 max-w-[90%] ${m.role === 'user' ? 'ml-auto flex-row-reverse' : ''}`}>
+                  <div className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 shadow-md ${m.role === 'user' ? 'bg-[#00BCD4] text-white' : 'bg-white border border-slate-100 text-[#00BCD4]'}`}>
+                    {m.role === 'user' ? <UserIcon size={18} /> : <Bot size={18} />}
+                  </div>
+                  <div className={`rounded-3xl p-5 text-[15px] font-medium leading-relaxed shadow-sm markdown-content ${m.role === 'user' ? 'bg-[#00BCD4] text-white rounded-tr-sm' : 'bg-white border border-slate-200/60 text-slate-800 rounded-tl-sm'}`}>
+                    <ReactMarkdown>{m.content}</ReactMarkdown>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
             
             {(loading || streamingMessage) && (
                <div className="flex flex-col gap-4 max-w-[90%]">
@@ -232,49 +367,95 @@ export default function FloatingAIChat() {
                  )}
                </div>
             )}
-            <div ref={messagesEndRef} />
-          </div>
-
-          {/* Footer Input */}
-          <form onSubmit={handleSend} className="p-6 bg-white border-t border-slate-100 flex gap-4">
-            <button
-              type="button"
-              onClick={toggleListening}
-              className={`p-3.5 rounded-2xl transition-all border shadow-sm
-                ${isListening ? 'bg-red-500 border-red-400 text-white animate-pulse' : 'bg-slate-50 border-slate-200 text-slate-400 hover:text-[#00BCD4] hover:bg-[#00BCD4]/5'}`}
-            >
-              {isListening ? <MicOff size={22} /> : <Mic size={22} />}
-            </button>
-            <input
-              value={input}
-              onChange={e => setInput(e.target.value)}
-              placeholder="Message your orchestrator..."
-              className="flex-1 text-base rounded-2xl border border-slate-200/80 px-6 focus:outline-none focus:ring-2 focus:ring-[#00BCD4]/30 bg-slate-50 transition-all font-semibold text-slate-700 shadow-inner placeholder:text-slate-400 placeholder:font-medium"
-              disabled={loading}
-            />
-            <button
-              type="submit"
-              disabled={loading || !input.trim()}
-              className="bg-[#00BCD4] text-white p-3.5 rounded-2xl shadow-xl shadow-[#00BCD4]/30 disabled:opacity-30 transition-all hover:scale-105 active:scale-95 hover:shadow-[#00BCD4]/40"
-            >
-              <Send size={24} />
-            </button>
-          </form>
+          <div ref={messagesEndRef} />
         </div>
-      )}
 
-      {/* Toggle Button */}
+        {/* Footer Input */}
+          <div className="flex flex-col bg-white shrink-0">
+             {selectedFile && (
+               <div className="mx-6 p-2.5 bg-cyan-50 border border-cyan-100 rounded-2xl flex items-center justify-between text-xs font-bold text-cyan-600 animate-in slide-in-from-bottom-2">
+                 <div className="flex items-center gap-2 truncate">
+                   <div className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-pulse" />
+                   <span className="truncate max-w-[300px]">{selectedFile.name}</span>
+                 </div>
+                 <button type="button" onClick={() => setSelectedFile(null)} className="p-1 hover:bg-rose-100 text-rose-500 rounded-lg transition-colors">
+                   <X size={14} />
+                 </button>
+               </div>
+             )}
+            
+            <form onSubmit={handleSend} className="p-6 flex gap-3 relative">
+              <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="image/*,.pdf,.txt,.docx" />
+              
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-12 h-12 flex items-center justify-center rounded-2xl bg-slate-50 border border-slate-200 text-slate-400 hover:text-[#00BCD4] hover:border-[#00BCD4]/30 hover:bg-[#00BCD4]/5 transition-all shadow-sm"
+                  title="Joindre un fichier"
+                >
+                  <Paperclip size={20} strokeWidth={2.5} />
+                </button>
+                
+                <button
+                  type="button"
+                  onClick={toggleListening}
+                  className={`w-12 h-12 flex items-center justify-center rounded-2xl transition-all border shadow-sm
+                    ${isListening ? 'bg-rose-500 border-rose-400 text-white animate-pulse' : 'bg-slate-50 border-slate-200 text-slate-400 hover:text-[#00BCD4] hover:bg-[#00BCD4]/5'}`}
+                  title="Enregistrement vocal"
+                >
+                  {isListening ? <MicOff size={20} strokeWidth={2.5} /> : <Mic size={20} strokeWidth={2.5} />}
+                </button>
+              </div>
+
+              <input
+                value={input}
+                onChange={e => setInput(e.target.value)}
+                placeholder="Un message ou une commande..."
+                className="flex-1 text-sm rounded-2xl border border-slate-200 px-5 focus:outline-none focus:ring-2 focus:ring-[#00BCD4]/20 bg-slate-50 transition-all font-semibold text-slate-700 shadow-inner"
+                disabled={loading}
+              />
+              <button
+                type="submit"
+                disabled={loading || (!input.trim() && !selectedFile)}
+                className="w-12 h-12 flex items-center justify-center rounded-2xl bg-[#00BCD4] text-white shadow-xl shadow-[#00BCD4]/30 disabled:opacity-30 transition-all hover:scale-105 active:scale-95"
+              >
+                <Send size={22} strokeWidth={2.5} />
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    )}
+
+      {/* Toggle Button Gamified */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className={`w-16 h-16 rounded-[1.5rem] flex items-center justify-center shadow-2xl transition-all duration-500 hover:scale-110 active:scale-95 group
-          ${isOpen ? 'bg-slate-900 text-white rotate-90 scale-90' : 'bg-[#00BCD4] text-white shadow-[#00BCD4]/40'}`}
+        className={`relative w-[72px] h-[72px] flex items-center justify-center rounded-full transition-all duration-500 hover:scale-105 group active:scale-95 z-50
+          ${isOpen ? 'rotate-90 scale-90 opacity-100' : 'opacity-50 hover:opacity-100'}`}
       >
-        {isOpen ? <X size={28} /> : <MessageSquare size={28} className="group-hover:animate-bounce" />}
+        {/* Glow behind the button */}
+        <div className="absolute inset-[-5px] bg-[#22d3ee] rounded-full blur-[15px] opacity-30 group-hover:opacity-50 transition-opacity pointer-events-none"></div>
+
+        {/* Outer Glassy Ring (Background Wrapper) - Thick Padding */}
+        <div className="absolute inset-0 rounded-full border-[1.5px] border-[#a5f3fc]/30 bg-gradient-to-br from-[#164e63]/50 to-[#155e75]/50 backdrop-blur-md shadow-[inset_0_0_15px_rgba(34,211,238,0.2)]"></div>
+        
+        {/* Inner Glowing Circle - Smaller to create thick ring aesthetic */}
+        <div className="relative w-[42px] h-[42px] rounded-full border border-cyan-400/50 bg-gradient-to-b from-[#155e75]/90 to-[#164e63]/90 shadow-[inset_0_0_20px_rgba(34,211,238,0.5),0_0_10px_rgba(34,211,238,0.4)] flex items-center justify-center overflow-hidden backdrop-blur-sm z-10 hover:shadow-[0_0_15px_rgba(34,211,238,0.8)] transition-all">
+            <div className="absolute top-0 left-0 w-full h-1/2 bg-white/5 rounded-t-full pointer-events-none"></div>
+            {isOpen ? (
+              <X size={24} className="text-white drop-shadow-[0_0_5px_rgba(255,255,255,0.8)] relative z-10" />
+            ) : (
+              <MessageSquare size={22} className="text-cyan-100 drop-shadow-[0_0_6px_rgba(34,211,238,1)] relative z-10 group-hover:scale-110 transition-transform duration-300 translate-y-[-1px] translate-x-[0.5px]" strokeWidth={2.5} />
+            )}
+        </div>
+
+        {/* Notification Dot - perfectly centered inside the thick outer ring */}
         {!isOpen && (
-           <span className="absolute -top-1 -right-1 flex h-5 w-5">
-             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-             <span className="relative inline-flex rounded-full h-5 w-5 bg-amber-500 border-2 border-white"></span>
-           </span>
+           <div className="absolute top-[8px] right-[8px] flex h-[12px] w-[12px] z-20">
+             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#67e8f9] opacity-80"></span>
+             <span className="relative inline-flex rounded-full h-[12px] w-[12px] bg-[#cffafe] border-[1.5px] border-[#164e63] shadow-[0_0_8px_rgba(103,232,249,1)]"></span>
+           </div>
         )}
       </button>
     </div>

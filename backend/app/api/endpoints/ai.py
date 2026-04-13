@@ -31,6 +31,11 @@ async def transcribe_voice(file: UploadFile = File(...), current_user: dict = De
                 "response_format": "json"
             }
         )
+        if response.status_code != 200:
+            print(f"Groq API Error: {response.text}")
+            from fastapi import HTTPException
+            raise HTTPException(status_code=response.status_code, detail=f"Transcription Failed: {response.text}")
+            
         data = response.json()
         return {"text": data.get("text", "")}
 

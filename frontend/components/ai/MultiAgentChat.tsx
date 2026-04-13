@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
-import { Send, Bot, User as UserIcon, AlertCircle, Mic, MicOff, Trash2, X } from "lucide-react"
+import { Send, Bot, User as UserIcon, AlertCircle, Mic, MicOff, Trash2, X, Paperclip } from "lucide-react"
 import axios from "axios"
 import { motion, AnimatePresence } from "framer-motion"
 import { useAuthStore } from "@/lib/store"
@@ -18,20 +18,23 @@ export default function MultiAgentChat() {
   const [currentThinking, setCurrentThinking] = useState("")
   const [currentAction, setCurrentAction] = useState<string | null>(null)
   const token = useAuthStore(state => state.token)
-  const messagesEndRef = useRef<HTMLDivElement>(null)
+  const chatContainerRef = useRef<HTMLDivElement>(null)
   const [isListening, setIsListening] = useState(false)
   const [recordingDuration, setRecordingDuration] = useState(0)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const chunksRef = useRef<Blob[]>([])
+  const streamRef = useRef<MediaStream | null>(null)
   const timerRef = useRef<any>(null)
-
   const shouldDiscardRef = useRef(false)
 
   const stopRecording = (discard: boolean = false) => {
     shouldDiscardRef.current = discard
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
       mediaRecorderRef.current.stop()
-      mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop())
+    }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop())
+      streamRef.current = null
     }
     clearInterval(timerRef.current)
     setIsListening(false)
@@ -41,6 +44,7 @@ export default function MultiAgentChat() {
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      streamRef.current = stream
       const recorder = new MediaRecorder(stream)
       mediaRecorderRef.current = recorder
       chunksRef.current = []
@@ -88,20 +92,19 @@ export default function MultiAgentChat() {
       const formData = new FormData()
       formData.append("file", blob, "vocal.webm")
 
-      const res = await axios.post("http://127.0.0.1:8000/api/ai/voice", formData, {
+      const res = await axios.post("http://localhost:8000/api/ai/voice", formData, {
         headers: { "Authorization": `Bearer ${token}`, "Content-Type": "multipart/form-data" }
       })
 
       console.log("📥 Transcription result:", res.data)
       if (res.data && res.data.text) {
-        // Automatically send the transcribed text to chat
         await submitMessage(res.data.text)
       } else {
-        console.warn("⚠️ Empty transcription received.")
+        addMessage({ role: "ai", content: "Je n'ai pas pu entendre. Le message vocal était-il silencieux ou trop court ?" })
       }
     } catch (err: any) {
       console.error("❌ Transcription failed:", err.response?.data || err.message)
-      addMessage({ role: "ai", content: "⚠️ Erreur lors de la transcription vocale. Veuillez réessayer." })
+      addMessage({ role: "ai", content: `Erreur de transcription: ${err.response?.data?.detail || "Le service audio est indisponible."}` })
     } finally {
       setLoading(false)
     }
@@ -121,12 +124,14 @@ export default function MultiAgentChat() {
   }
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+    }
   }
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [messages, streamingMessage, currentThinking, currentAction]);
 
   // Removed manual localStorage sync - handled by useChatStore persist middleware
 
@@ -249,7 +254,7 @@ export default function MultiAgentChat() {
   }
 
   return (
-    <div className="flex flex-col h-[650px] border border-slate-200/60 rounded-3xl overflow-hidden bg-white shadow-xl ring-1 ring-slate-900/5 relative">
+    <div className="flex flex-col h-full border border-slate-200/60 rounded-3xl overflow-hidden bg-white shadow-xl ring-1 ring-slate-900/5 relative">
       <AnimatePresence>
         {isListening && (
           <motion.div 
@@ -340,7 +345,7 @@ export default function MultiAgentChat() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-6 md:p-8 space-y-4 bg-slate-50/50">
+      <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-6 md:p-8 space-y-4 custom-scrollbar-visible bg-slate-50/50">
         {messages.map((m, i) => (
           <div key={i} className={`flex gap-3 max-w-[90%] md:max-w-[88%] ${m.role === 'user' ? 'ml-auto flex-row-reverse' : ''}`}>
             <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 shadow-sm
@@ -406,7 +411,8 @@ export default function MultiAgentChat() {
             )}
           </div>
         )}
-        <div ref={messagesEndRef} />
+        {/* Spacer for bottom */}
+        <div className="h-4" />
       </div>
 
       <div className="flex flex-col">
@@ -425,7 +431,7 @@ export default function MultiAgentChat() {
             </button>
           </div>
         )}
-        <form onSubmit={handleSend} className="p-4 bg-white/50 backdrop-blur-sm border-t border-slate-200/60 flex gap-2 md:gap-3">
+        <form onSubmit={handleSend} className="p-6 bg-white/50 backdrop-blur-sm border-t border-slate-200/60 flex items-center gap-3">
           <input 
             type="file" 
             ref={fileInputRef} 
@@ -436,33 +442,35 @@ export default function MultiAgentChat() {
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="flex items-center justify-center w-10 h-10 md:w-11 md:h-11 rounded-xl transition-all border bg-slate-50 border-slate-200 text-slate-400 hover:text-[#00CCCC] hover:border-[#00CCCC]/30"
+            className="flex items-center justify-center w-12 h-12 rounded-2xl transition-all border bg-slate-50 border-slate-200 text-slate-400 hover:text-[#00CCCC] hover:border-[#00CCCC]/30 shadow-sm shrink-0"
+            title="Joindre un fichier"
           >
-            <Send className="rotate-[-45deg]" size={18} />
+            <Paperclip size={20} strokeWidth={2.5} />
           </button>
           <button
             type="button"
             onClick={toggleListening}
-            className={`flex items-center justify-center w-10 h-10 md:w-11 md:h-11 rounded-xl transition-all border
+            className={`flex items-center justify-center w-12 h-12 rounded-2xl transition-all border shadow-sm shrink-0
               ${isListening
-                ? 'bg-rose-500 border-rose-400 text-white animate-pulse shadow-lg'
-                : 'bg-slate-50 border-slate-200 text-slate-400 hover:text-slate-600'}`}
+                ? 'bg-rose-500 border-rose-400 text-white animate-pulse'
+                : 'bg-slate-50 border-slate-200 text-slate-400 hover:text-[#00CCCC] hover:bg-[#00CCCC]/5'}`}
+            title="Enregistrement vocal"
           >
-            {isListening ? <MicOff size={18} /> : <Mic size={18} />}
+            {isListening ? <MicOff size={20} strokeWidth={2.5} /> : <Mic size={20} strokeWidth={2.5} />}
           </button>
           <input
             value={input}
             onChange={e => setInput(e.target.value)}
-            placeholder="Present your plan or ask for a critique..."
-            className="flex-1 text-sm rounded-xl border border-slate-200/80 px-4 py-2 md:py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 bg-white shadow-sm transition-all"
+            placeholder="Écrivez votre message ici..."
+            className="flex-1 text-[15px] font-semibold rounded-2xl border border-slate-200 px-6 h-12 focus:outline-none focus:ring-2 focus:ring-[#00CCCC]/20 bg-white shadow-inner transition-all text-slate-700 placeholder:text-slate-400 placeholder:font-medium"
             disabled={loading}
           />
           <button
             type="submit"
             disabled={loading || (!input.trim() && !selectedFile)}
-            className="bg-gradient-to-br from-blue-600 to-indigo-600 text-white px-4 md:px-5 py-2 rounded-xl shadow-md hover:shadow-lg disabled:opacity-50 transition-all hover:-translate-y-0.5 active:translate-y-0 font-medium flex items-center justify-center"
+            className="w-12 h-12 flex items-center justify-center rounded-2xl bg-gradient-to-br from-[#00CCCC] to-[#008f88] text-white shadow-xl shadow-[#00CCCC]/20 disabled:opacity-30 transition-all hover:scale-105 active:scale-95 shrink-0"
           >
-            <Send size={18} className="drop-shadow-sm" />
+            <Send size={22} strokeWidth={2.5} />
           </button>
         </form>
       </div>
