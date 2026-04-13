@@ -6,7 +6,7 @@ def get_llm(use_mini: bool = True):
     from dotenv import load_dotenv
     load_dotenv()
     
-def get_llm(use_mini: bool = True):
+def get_llm(use_mini: bool = True, temperature: float = 0):
     import os
     from dotenv import load_dotenv
     import requests
@@ -28,17 +28,17 @@ def get_llm(use_mini: bool = True):
             final_model = "llama3"
             
         if final_model:
-            print(f"DEBUG: SMA ENGINE -> LOCAL-AI (Model: {final_model})")
-            return ChatOpenAI(temperature=0, model=final_model, base_url=f"{ollama_url}/v1", api_key="ollama")
+            print(f"DEBUG: SMA ENGINE -> LOCAL-AI (Model: {final_model}, Temp: {temperature})")
+            return ChatOpenAI(temperature=temperature, model=final_model, base_url=f"{ollama_url}/v1", api_key="ollama")
     except:
         pass
 
     # 🌩️ HYBRID CLOUD FALLBACK (Active until Mistral download finishes)
     # Using llama-3.1-8b-instant for zero-error stability.
-    print(f"DEBUG: SMA ENGINE -> HYBRID-CLOUD (Groq 8B) for stability...")
+    print(f"DEBUG: SMA ENGINE -> HYBRID-CLOUD (Groq 8B) for stability (Temp: {temperature})...")
     api_key = os.getenv("GROQ_API_KEY") or os.getenv("OPENAI_API_KEY")
     return ChatOpenAI(
-        temperature=0, 
+        temperature=temperature, 
         model="llama-3.1-8b-instant",
         max_tokens=1024,
         base_url="https://api.groq.com/openai/v1",
@@ -46,10 +46,10 @@ def get_llm(use_mini: bool = True):
     )
 
 class BaseAgent:
-    def __init__(self, name: str, system_prompt: str, use_mini: bool = True):
+    def __init__(self, name: str, system_prompt: str, use_mini: bool = True, temperature: float = 0):
         self.name = name
         self.system_prompt = system_prompt
-        self.llm = get_llm(use_mini=use_mini)
+        self.llm = get_llm(use_mini=use_mini, temperature=temperature)
 
     async def ainvoke(self, state: dict):
         messages = state.get("messages", [])

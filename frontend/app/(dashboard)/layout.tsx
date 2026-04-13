@@ -27,12 +27,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const navLinks = user?.role === "PROJECT_MANAGER" ? [
     { name: "Dashboard", href: "/", icon: <BarChart3 size={20} /> },
-    { name: "Projets", href: "/projects", icon: <Layers size={20} /> },
+    { name: "Défis", href: "/projects", icon: <Layers size={20} /> },
     { name: "Équipe", href: "/team", icon: <Users size={20} /> },
   ] : [
     { name: "Dashboard", href: "/", icon: <BarChart3 size={20} /> },
-    { name: "Projets", href: "/projects", icon: <Layers size={20} /> },
-    { name: "Tâches", href: "/tasks", icon: <CheckSquare size={20} /> },
+    { name: "Défis", href: "/projects", icon: <Layers size={20} /> },
+    { name: "Idées", href: "/tasks", icon: <CheckSquare size={20} /> },
     { name: "Calendrier", href: "/calendar", icon: <Calendar size={20} /> },
   ]
 

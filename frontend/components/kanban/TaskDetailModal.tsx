@@ -114,7 +114,9 @@ export default function TaskDetailModal({ task, isOpen, teamMembers, onClose, on
                </DialogTitle>
             </div>
             <DialogDescription className="text-slate-500 mt-1 flex items-center gap-2">
-              <Clock size={14} /> Dans la colonne <span className="font-bold text-blue-600">{task.status}</span>
+              <Clock size={14} /> État de maturation : <span className="font-bold text-blue-600">
+                {task.status === 'SPARK' ? 'Étincelle' : task.status === 'VALIDATION' ? 'Validation' : task.status === 'INCUBATION' ? 'Incubation' : task.status}
+              </span>
             </DialogDescription>
           </DialogHeader>
         </div>
@@ -185,22 +187,20 @@ export default function TaskDetailModal({ task, isOpen, teamMembers, onClose, on
 
             <div className="space-y-2">
                <div className="flex items-center gap-2 text-slate-700 font-bold uppercase tracking-wider text-[11px]">
-                  Statut
+                  Cycle de Maturation
                </div>
                <Select 
                   disabled={!isManager}
-                  value={(editedTask.status as string) || "TODO"} 
+                  value={(editedTask.status as string) || "SPARK"} 
                   onValueChange={(v: string | null) => v && setEditedTask({ ...editedTask, status: v })}
                 >
                  <SelectTrigger className="bg-slate-50 border-slate-200 w-full sm:w-1/2 h-9">
-                   <SelectValue placeholder="Statut" />
+                   <SelectValue placeholder="Maturation" />
                  </SelectTrigger>
                  <SelectContent>
-                   <SelectItem value="BACKLOG">Backlog</SelectItem>
-                   <SelectItem value="TODO">À faire</SelectItem>
-                   <SelectItem value="IN_PROGRESS">En cours</SelectItem>
-                   <SelectItem value="REVIEW">En revue</SelectItem>
-                   <SelectItem value="DONE">Terminé</SelectItem>
+                   <SelectItem value="SPARK">Étincelle (Ideation)</SelectItem>
+                   <SelectItem value="VALIDATION">Validation (Market Fit)</SelectItem>
+                   <SelectItem value="INCUBATION">Incubation (Prototype)</SelectItem>
                  </SelectContent>
                </Select>
             </div>
@@ -285,30 +285,63 @@ export default function TaskDetailModal({ task, isOpen, teamMembers, onClose, on
               <>
                 <div className="flex gap-2">
                   <Input
-                    placeholder="Ajouter un lien ou un nom de livrable..."
+                    placeholder="Ajouter un lien ou une variante..."
                     value={newAttachment}
                     onChange={(e) => setNewAttachment(e.target.value)}
                     className="bg-slate-50 border-slate-200 text-sm"
                   />
                   <Button onClick={handleAddAttachment} className="bg-blue-600 hover:bg-blue-700 text-white shadow-md">
-                    <Plus size={16} className="mr-2" /> Ajouter Lien
+                    <Plus size={16} className="mr-2" /> Ajouter
                   </Button>
-                </div>
-                
-                <div className="flex items-center mt-2">
-                   <Label htmlFor={`file-upload-${task._id}`} className={`cursor-pointer inline-flex items-center justify-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 px-4 py-2 rounded-xl text-sm font-semibold transition-colors shadow-sm w-full sm:w-auto ${isUploading ? "opacity-50 cursor-not-allowed" : ""}`}>
-                     <Upload size={16} /> {isUploading ? "Upload en cours..." : "Téléverser un Fichier"}
-                   </Label>
-                   <Input 
-                     id={`file-upload-${task._id}`} 
-                     type="file" 
-                     className="hidden" 
-                     onChange={handleFileUpload} 
-                     disabled={isUploading}
-                   />
                 </div>
               </>
             )}
+
+            {/* SPARK / VOTE SECTION */}
+            <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
+               <div className="flex items-center gap-3">
+                  <Button 
+                    variant={editedTask.votes?.includes(user?.id as string) ? "default" : "outline"}
+                    className={`rounded-xl gap-2 h-10 px-6 font-bold transition-all ${editedTask.votes?.includes(user?.id as string) ? "bg-rose-500 hover:bg-rose-600 text-white shadow-rose-200" : "text-slate-600 hover:bg-rose-50 border-slate-200"}`}
+                    onClick={async () => {
+                       try {
+                         const res = await axios.post(`http://localhost:8000/api/tasks/${task._id}/vote`, {}, {
+                           headers: { "Authorization": `Bearer ${token}` }
+                         })
+                         const updatedVotes = editedTask.votes?.includes(user?.id as string)
+                           ? editedTask.votes.filter(id => id !== user?.id)
+                           : [...(editedTask.votes || []), user?.id as string]
+                         setEditedTask({ ...editedTask, votes: updatedVotes })
+                         onUpdate(task._id, { votes: updatedVotes })
+                       } catch (e) { console.error(e) }
+                    }}
+                  >
+                    <Zap size={18} className={editedTask.votes?.includes(user?.id as string) ? "fill-white" : "text-rose-500"} />
+                    {editedTask.votes?.includes(user?.id as string) ? "Étincelle activée !" : "Donner une Étincelle"}
+                  </Button>
+                  <span className="text-sm font-black text-slate-400">{editedTask.votes?.length || 0} votes</span>
+               </div>
+
+               {isManager && (
+                 <Button 
+                   className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-xl gap-2 font-bold shadow-lg"
+                   onClick={async () => {
+                     if (!confirm("L'IA va générer 3 variantes disruptives de cette idée. Continuer ?")) return
+                     try {
+                        await axios.post(`http://localhost:8000/api/tasks/${task._id}/boost`, {}, {
+                          headers: { "Authorization": `Bearer ${token}` }
+                        })
+                        alert("L'idée a été boostée ! De nouvelles ramifications sont apparues sur le Mind Map.")
+                        onClose()
+                        window.location.reload()
+                     } catch(e) { console.error(e) }
+                   }}
+                 >
+                   <Rocket size={18} />
+                   Booster avec l'IA
+                 </Button>
+               )}
+            </div>
           </div>
         </div>
 
@@ -320,23 +353,23 @@ export default function TaskDetailModal({ task, isOpen, teamMembers, onClose, on
                 onClick={() => onDelete(task._id)}
                 className="text-red-500 hover:text-red-600 hover:bg-red-50 px-3 h-9 font-bold border border-transparent hover:border-red-100 rounded-xl"
               >
-                <Trash2 size={16} /> <span className="hidden sm:inline-block ml-2">Supprimer la Tâche</span>
+                <Trash2 size={16} /> <span className="hidden sm:inline-block ml-2">Supprimer l'Idée</span>
               </Button>
             )}
-            {isManager && task.status === "REVIEW" && (
+            {isManager && task.status === "VALIDATION" && (
               <div className="flex gap-2 bg-slate-200/50 p-1 rounded-xl border border-slate-200 shrink-0">
-                <Button onClick={() => { onUpdate(task._id, {status: "DONE"}); onClose(); }} className="bg-emerald-500 hover:bg-emerald-600 shadow-sm text-white h-8 px-3 text-xs font-bold rounded-lg transition-colors">👍 Approuver</Button>
-                <Button onClick={() => { onUpdate(task._id, {status: "IN_PROGRESS"}); onClose(); }} variant="ghost" className="text-red-600 hover:bg-red-50 h-8 px-3 text-xs font-bold rounded-lg transition-colors bg-white shadow-sm border border-slate-200">👎 Rejeter</Button>
+                <Button onClick={() => { onUpdate(task._id, {status: "INCUBATION"}); onClose(); }} className="bg-emerald-500 hover:bg-emerald-600 shadow-sm text-white h-8 px-3 text-xs font-bold rounded-lg transition-colors">👍 Incuber</Button>
+                <Button onClick={() => { onUpdate(task._id, {status: "SPARK"}); onClose(); }} variant="ghost" className="text-red-600 hover:bg-red-50 h-8 px-3 text-xs font-bold rounded-lg transition-colors bg-white shadow-sm border border-slate-200">👎 Rejeter</Button>
               </div>
             )}
-            {!isManager && isAssigned && task.status === "TODO" && (
-              <Button onClick={() => { onUpdate(task._id, {status: "IN_PROGRESS"}); onClose(); }} className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm h-9 px-4 text-xs font-bold rounded-lg transition-colors whitespace-nowrap">
-                Démarrer (En cours)
+            {!isManager && isAssigned && task.status === "SPARK" && (
+              <Button onClick={() => { onUpdate(task._id, {status: "VALIDATION"}); onClose(); }} className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm h-9 px-4 text-xs font-bold rounded-lg transition-colors whitespace-nowrap">
+                Lancer la Validation
               </Button>
             )}
-            {task.status === "IN_PROGRESS" && (isManager || isAssigned) && (
-              <Button onClick={() => { onUpdate(task._id, {status: "REVIEW"}); onClose(); }} className="bg-purple-600 hover:bg-purple-700 text-white shadow-sm h-9 px-4 text-xs font-bold rounded-lg transition-colors whitespace-nowrap">
-                Soumettre pour revue
+            {task.status === "VALIDATION" && (isManager || isAssigned) && (
+              <Button onClick={() => { onUpdate(task._id, {status: "INCUBATION"}); onClose(); }} className="bg-purple-600 hover:bg-purple-700 text-white shadow-sm h-9 px-4 text-xs font-bold rounded-lg transition-colors whitespace-nowrap">
+                Soumettre pour Incubation
               </Button>
             )}
             {task.status === "REVIEW" && (

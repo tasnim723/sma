@@ -14,9 +14,9 @@ async def create_task(task: TaskCreate, current_user: dict = Depends(get_current
     db = get_database()
     task_dict = task.model_dump()
     
-    # User requirement: Default is BACKLOG, BACKLOG -> TODO if assigned
-    if task_dict.get("status") == "BACKLOG" and any(aid for aid in task_dict.get("assignee_ids", [])):
-        task_dict["status"] = "TODO"
+    # Idea requirement: Default is SPARK
+    if not task_dict.get("status"):
+        task_dict["status"] = "SPARK"
 
     result = await db["tasks"].insert_one(task_dict)
     
@@ -80,11 +80,11 @@ async def update_task(task_id: str, task_update: dict, current_user: dict = Depe
     
     # Log activity if assignees changed
     if "assignee_ids" in task_update:
-        # User requirement: BACKLOG -> TODO if assigned
+        # Idea requirement: SPARK -> VALIDATION if assigned
         current_task = await db["tasks"].find_one({"_id": ObjectId(task_id)})
-        if current_task and current_task.get("status") == "BACKLOG" and any(aid for aid in task_update.get("assignee_ids", [])):
-            await db["tasks"].update_one({"_id": ObjectId(task_id)}, {"$set": {"status": "TODO"}})
-            updated_task["status"] = "TODO"
+        if current_task and current_task.get("status") == "SPARK" and any(aid for aid in task_update.get("assignee_ids", [])):
+            await db["tasks"].update_one({"_id": ObjectId(task_id)}, {"$set": {"status": "VALIDATION"}})
+            updated_task["status"] = "VALIDATION"
             
         await log_activity(db, "TASK_ASSIGNED", updated_task["_id"], updated_task["title"], current_user, details="Assignees updated")
         
@@ -204,3 +204,69 @@ async def trigger_manual_ai_review(task_id: str, current_user: dict = Depends(ge
         
     updated_task = await handle_task_review(db, task_id, attachments, current_user)
     return updated_task
+
+@router.post("/{task_id}/vote")
+async def vote_for_idea(task_id: str, current_user: dict = Depends(get_current_user)):
+    db = get_database()
+    user_id = str(current_user["_id"])
+    
+    if not ObjectId.is_valid(task_id):
+        raise HTTPException(status_code=400, detail="Invalid idea ID")
+        
+    task = await db["tasks"].find_one({"_id": ObjectId(task_id)})
+    if not task:
+        raise HTTPException(status_code=404, detail="Idea not found")
+        
+    votes = task.get("votes", [])
+    if user_id in votes:
+        # Unvote
+        await db["tasks"].update_one({"_id": ObjectId(task_id)}, {"$pull": {"votes": user_id}})
+        action = "UNVOTED"
+    else:
+        # Vote
+        await db["tasks"].update_one({"_id": ObjectId(task_id)}, {"$push": {"votes": user_id}})
+        action = "VOTED"
+        
+        # Award small XP for voting
+        from app.services.gamification import award_xp
+        await award_xp(user_id, 10)
+    
+    return {"message": f"Successfully {action}", "total_votes": len(votes) + (1 if action == "VOTED" else -1)}
+
+@router.post("/{task_id}/boost")
+async def boost_idea_with_ai(task_id: str, current_user: dict = Depends(get_current_user)):
+    """AI Booster: Generates 3 disruptive variants of the idea."""
+    db = get_database()
+    if not ObjectId.is_valid(task_id):
+        raise HTTPException(status_code=400, detail="Invalid idea ID")
+        
+    task = await db["tasks"].find_one({"_id": ObjectId(task_id)})
+    if not task:
+        raise HTTPException(status_code=404, detail="Idea not found")
+        
+    # Call AI Disruptor Agent
+    from app.services.agents.disruption_agent import generate_disruptive_variants
+    variants = await generate_disruptive_variants(task["title"], task["description"])
+    
+    new_ideas = []
+    for var in variants:
+        new_idea = {
+            "title": var["title"],
+            "description": var["description"],
+            "project_id": task["project_id"],
+            "parent_idea_id": str(task["_id"]),
+            "status": "SPARK",
+            "audacity_score": var.get("audacity_score", 80),
+            "created_at": datetime.utcnow(),
+            "assignee_ids": [],
+            "votes": []
+        }
+        result = await db["tasks"].insert_one(new_idea)
+        new_idea["_id"] = str(result.inserted_id)
+        new_ideas.append(new_idea)
+        
+    await db["tasks"].update_one({"_id": ObjectId(task_id)}, {"$inc": {"variant_count": len(variants)}})
+    
+    await log_activity(db, "IDEA_BOOSTED", str(task["_id"]), task["title"], current_user, details=f"Generated {len(variants)} disruptive variants")
+    
+    return {"message": "Idea boosted!", "variants": new_ideas}

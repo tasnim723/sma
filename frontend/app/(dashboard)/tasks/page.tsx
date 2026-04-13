@@ -1,31 +1,78 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import KanbanBoard, { Task } from "@/components/kanban/KanbanBoard"
+import { useEffect, useState, useCallback, useMemo } from "react"
+import ReactFlow, { 
+  Background, 
+  Controls, 
+  useNodesState, 
+  useEdgesState, 
+  MarkerType,
+  BackgroundVariant
+} from "reactflow"
+import "reactflow/dist/style.css"
+
+import IdeaNode from "@/components/kanban/IdeaNode"
 import TaskDetailModal from "@/components/kanban/TaskDetailModal"
 import axios from "axios"
 import { useAuthStore } from "@/lib/store"
-import { CheckSquare } from "lucide-react"
+import { Lightbulb, RefreshCw, Plus } from "lucide-react"
 
-export default function GlobalTasksPage() {
+const nodeTypes = {
+  ideaNode: IdeaNode,
+}
+
+export default function IdeaTreePage() {
   const token = useAuthStore(state => state.token)
-  const [tasks, setTasks] = useState<Task[]>([])
+  const [nodes, setNodes, onNodesChange] = useNodesState([])
+  const [edges, setEdges, onEdgesChange] = useEdgesState([])
   const [loading, setLoading] = useState(true)
   const [teamMembers, setTeamMembers] = useState<any[]>([])
-  const [selectedTask, setSelectedTask] = useState<Task | null>(null)
+  const [selectedIdea, setSelectedIdea] = useState<any | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [reviewingTaskId, setReviewingTaskId] = useState<string | null>(null)
 
   const fetchData = async () => {
+    setLoading(true)
     try {
       const [tasksRes, usersRes] = await Promise.all([
         axios.get(`http://localhost:8000/api/tasks/me/all`, { headers: { Authorization: `Bearer ${token}` } }),
         axios.get(`http://localhost:8000/api/members/`, { headers: { Authorization: `Bearer ${token}` } })
       ])
-      setTasks(tasksRes.data || [])
+      
+      const ideas = tasksRes.data || []
       setTeamMembers(usersRes.data || [])
+      
+      // Transform ideas into ReactFlow nodes and edges
+      const newNodes = ideas.map((idea: any, index: number) => {
+        // Simple layout: original ideas on left, ramifications on right
+        const isChild = !!idea.parent_idea_id
+        return {
+          id: idea._id,
+          type: 'ideaNode',
+          data: { ...idea },
+          position: isChild 
+            ? { x: 400 + (index % 3) * 250, y: (index * 150) % 600 } 
+            : { x: 50, y: index * 180 },
+        }
+      })
+
+      const newEdges = ideas
+        .filter((idea: any) => idea.parent_idea_id)
+        .map((idea: any) => ({
+          id: `e-${idea.parent_idea_id}-${idea._id}`,
+          source: idea.parent_idea_id,
+          target: idea._id,
+          animated: true,
+          style: { stroke: '#00BCD4', strokeWidth: 2 },
+          markerEnd: {
+            type: MarkerType.ArrowClosed,
+            color: '#00BCD4',
+          },
+        }))
+
+      setNodes(newNodes)
+      setEdges(newEdges)
     } catch (err) {
-      console.error("Error fetching global tasks:", err)
+      console.error("Error fetching ideas:", err)
     } finally {
       setLoading(false)
     }
@@ -35,90 +82,99 @@ export default function GlobalTasksPage() {
     if (token) fetchData()
   }, [token])
 
-  const handleUpdateTask = async (taskId: string, updates: Partial<Task>) => {
+  const onNodeClick = useCallback((event: any, node: any) => {
+    setSelectedIdea(node.data)
+    setIsModalOpen(true)
+  }, [])
+
+  const handleUpdateIdea = async (ideaId: string, updates: any) => {
     try {
-      const res = await axios.put(`http://localhost:8000/api/tasks/${taskId}`,
+      const res = await axios.put(`http://localhost:8000/api/tasks/${ideaId}`,
         updates,
         { headers: { Authorization: `Bearer ${token}` } }
       )
-      setTasks(tasks.map((t: any) => t._id === taskId ? res.data : t))
+      // Refresh local state or just refetch
+      fetchData()
     } catch (err) {
-      alert("Failed to update task")
+      console.error(err)
     }
   }
 
-  const handleDeleteTask = async (taskId: string) => {
-    if (!confirm("Voulez-vous vraiment supprimer cette tâche ?")) return
+  const handleDeleteIdea = async (ideaId: string) => {
+    if (!confirm("Supprimer cette idée ?")) return
     try {
-      await axios.delete(`http://localhost:8000/api/tasks/${taskId}`,
+      await axios.delete(`http://localhost:8000/api/tasks/${ideaId}`,
         { headers: { Authorization: `Bearer ${token}` } }
       )
-      setTasks(tasks.filter((t: any) => t._id !== taskId))
+      fetchData()
       setIsModalOpen(false)
     } catch (err) {
-      alert("Failed to delete task")
-    }
-  }
-
-  const handleAIReview = async (task: Task) => {
-    setReviewingTaskId(task._id)
-    try {
-      const res = await axios.post(`http://localhost:8000/api/tasks/${task._id}/ai-review`, {}, {
-        headers: { "Authorization": `Bearer ${token || ""}` }
-      })
-      setTasks(tasks.map((t: any) => t._id === task._id ? res.data : t))
-      if (selectedTask?._id === task._id) {
-        setSelectedTask(res.data)
-      }
-    } catch (err) {
-      alert("AI Review failed")
-    } finally {
-      setReviewingTaskId(null)
+      console.error(err)
     }
   }
 
   return (
-    <div className="space-y-6 pb-10">
-      <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <div className="p-3 bg-blue-100/50 rounded-2xl">
-            <CheckSquare size={24} className="text-blue-600" />
+    <div className="h-full flex flex-col">
+      {/* Header Overlay */}
+      <div className="absolute top-6 left-6 right-6 z-20 flex items-center justify-between pointer-events-none">
+        <div className="bg-white/70 backdrop-blur-md p-4 px-6 rounded-3xl border border-white/40 shadow-xl pointer-events-auto flex items-center gap-4">
+          <div className="p-3 bg-rose-100/50 rounded-2xl">
+            <Lightbulb size={24} className="text-rose-600" />
           </div>
           <div>
-            <h2 className="text-2xl font-bold text-slate-800">Mes Tâches</h2>
-            <p className="text-slate-500 font-medium text-sm">Votre tableau Kanban global personnel à travers tous les projets.</p>
+            <h2 className="text-xl font-black text-slate-800 tracking-tight">L'Arbre des Idées (Mind Map)</h2>
+            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Visualisez et ramifiez vos concepts</p>
           </div>
         </div>
-        <button onClick={fetchData} className="px-4 py-2 text-sm font-semibold rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors">
-          Rafraîchir
-        </button>
+
+        <div className="flex gap-3 pointer-events-auto">
+           <button 
+             onClick={fetchData} 
+             className="p-3 bg-white/70 backdrop-blur-md rounded-2xl border border-white/40 shadow-lg text-slate-500 hover:text-rose-500 transition-all"
+           >
+             <RefreshCw size={20} className={loading ? "animate-spin" : ""} />
+           </button>
+           <button className="flex items-center gap-2 bg-slate-900 text-white px-6 py-3 rounded-2xl font-bold shadow-xl hover:bg-slate-800 transition-all">
+             <Plus size={20} />
+             Nouvelle Étincelle
+           </button>
+        </div>
       </div>
 
-      {loading ? (
-        <div className="p-12 text-center text-slate-500 font-medium">Chargement de vos tâches...</div>
-      ) : (
-        <div className="bg-transparent h-full">
-          <KanbanBoard
-            initialTasks={tasks}
-            teamMembers={teamMembers}
-            onSelectTask={(task) => { setSelectedTask(task); setIsModalOpen(true) }}
-            onAddTask={() => { }}
-            onAIReview={handleAIReview}
-            reviewingTaskId={reviewingTaskId}
-          />
-        </div>
-      )}
+      {/* ReactFlow Canvas */}
+      <div className="flex-1 w-full h-full bg-[#f8fafc]">
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          onNodeClick={onNodeClick}
+          nodeTypes={nodeTypes}
+          fitView
+          className="bg-dot-pattern"
+        >
+          <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="#cbd5e1" />
+          <Controls className="bg-white border-slate-200 rounded-xl shadow-lg mb-4" />
+        </ReactFlow>
+      </div>
 
-      {selectedTask && (
+      {selectedIdea && (
         <TaskDetailModal
           isOpen={isModalOpen}
-          task={selectedTask}
+          task={selectedIdea}
           teamMembers={teamMembers}
           onClose={() => setIsModalOpen(false)}
-          onUpdate={handleUpdateTask}
-          onDelete={handleDeleteTask}
+          onUpdate={handleUpdateIdea}
+          onDelete={handleDeleteIdea}
         />
       )}
+      
+      <style jsx global>{`
+        .bg-dot-pattern {
+          background-image: radial-gradient(#cbd5e1 1px, transparent 1px);
+          background-size: 24px 24px;
+        }
+      `}</style>
     </div>
   )
 }

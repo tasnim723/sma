@@ -3,38 +3,34 @@ from typing import TypedDict, Annotated, Sequence
 import operator
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
 
-from .planning_agent import planning_agent
-from .kpi_agent import kpi_agent
-from .innovation_agent import innovation_agent
-from .risk_agent import risk_agent
-from .communication_agent import communication_agent
-from .decision_agent import decision_agent
-from .tools import get_system_stats_func, list_team_members_func
+from .ideateur_agent import ideateur_agent
+from .critique_agent import critique_agent
+from .synthetiseur_agent import synthetiseur_agent
 
 async def run_orchestrator(query: str) -> str:
-    """Async wrapper to run the specialized agents and return a report with real-time data grounding."""
-    # Fetch real data for context
-    try:
-        stats = await get_system_stats_func()
-        members = await list_team_members_func()
-    except Exception as e:
-        stats = f"Error fetching stats: {str(e)}"
-        members = f"Error fetching members: {str(e)}"
-        
-    data_context = f"\n\n[REAL-TIME SYSTEM DATA]\n{stats}\n{members}\n"
+    """Async Innovation Facilitator: Orchestrates a Diamond Model Brainstorming (Divergence then Convergence)."""
     
-    # Querying Risk and Planning agents with real context
-    # We use ainvoke here for non-blocking execution
-    risk_res = await risk_agent.llm.ainvoke([
-        {"role": "system", "content": risk_agent.system_prompt},
-        {"role": "user", "content": f"{data_context}\nAnalyze this from a risk perspective: {query}"}
-    ])
-    plan_res = await planning_agent.llm.ainvoke([
-        {"role": "system", "content": planning_agent.system_prompt},
-        {"role": "user", "content": f"{data_context}\nAnalyze this from a planning perspective: {query}"}
+    # [PHASE 1: DIVERGENCE] - Generate wild ideas
+    # The Idéateur generates initial raw concepts
+    ideateur_res = await ideateur_agent.llm.ainvoke([
+        {"role": "system", "content": ideateur_agent.system_prompt},
+        {"role": "user", "content": f"Sujet de brainstorming : {query}\nLance 3 idées radicales maintenant."}
     ])
     
-    return f"[ORCHESTRATOR REPORT (Real-Time Aware)]\nRisk Analysis: {risk_res.content}\n\nPlanning Analysis: {plan_res.content}"
+    # The Critique Constructif pivot-rebounds on these ideas (Yes, and...)
+    critique_res = await critique_agent.llm.ainvoke([
+        {"role": "system", "content": critique_agent.system_prompt},
+        {"role": "user", "content": f"Rebondis sur ces idées de l'idéateur avec la méthode 'Yes, and...':\n{ideateur_res.content}"}
+    ])
+    
+    # [PHASE 2: CONVERGENCE] - Summarize and structure
+    # The Synthétiseur selects and structures the final output
+    synthetiseur_res = await synthetiseur_agent.llm.ainvoke([
+        {"role": "system", "content": synthetiseur_agent.system_prompt},
+        {"role": "user", "content": f"Discussion de divergence :\nIdéateur : {ideateur_res.content}\nCritique : {critique_res.content}\n\nSynthétise le tout en extrayant les 3 concepts les plus prometteurs pour le futur."}
+    ])
+    
+    return f"[RAPPORT D'INNOVATION SMA]\n\n🚀 PHASE DE DIVERGENCE (Idéation) :\n{ideateur_res.content}\n\n🛠️ PHASE DE REBOND (Critique Constructif) :\n{critique_res.content}\n\n✨ SYNTHÈSE FINALE (Concepts retenus) :\n{synthetiseur_res.content}"
 
 class GatewayState(TypedDict):
     messages: Annotated[Sequence[BaseMessage], operator.add]
