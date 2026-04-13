@@ -77,7 +77,7 @@ function MemberDashboard({ user, token }: any) {
          {/* Premium Welcome Header */}
          <motion.div variants={itemVariants} className="relative group">
             <div className="absolute inset-0 bg-gradient-to-r from-[#00CCCC]/10 via-transparent to-[#FF0000]/5 rounded-[2rem] blur-xl opacity-30 group-hover:opacity-50 transition-opacity" />
-            <div className="relative overflow-hidden rounded-[2rem] bg-white/80 backdrop-blur-xl border border-white/50 p-6 shadow-xl shadow-slate-200/40">
+            <div className="relative overflow-hidden rounded-[2rem] bg-white/70 backdrop-blur-xl border border-white/50 p-6 shadow-xl shadow-slate-200/40">
                <div className="absolute top-0 right-0 w-48 h-48 bg-gradient-to-br from-[#00CCCC]/10 to-[#FF0000]/5 rounded-full blur-[60px] -mr-16 -mt-16 pointer-events-none" />
                <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-6">
                   <div className="flex-1">
@@ -259,7 +259,7 @@ function ManagerDashboard({ user, token }: any) {
                      </h2>
                   </div>
                   
-                  <div className="relative rounded-[2rem] p-6 backdrop-blur-3xl border border-sky-100 bg-white/85 shadow-[0_10px_40px_rgba(0,0,0,0.03)] flex flex-col flex-1 min-h-0">
+                  <div className="relative rounded-[2rem] p-6 backdrop-blur-3xl border border-sky-100 bg-white/70 shadow-[0_10px_40px_rgba(0,0,0,0.03)] flex flex-col flex-1 min-h-0">
                      <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-sky-400/5 to-transparent rounded-full blur-3xl opacity-50 pointer-events-none" />
                      <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-6 relative z-10 p-2">
                         <AnimatePresence>
