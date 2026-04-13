@@ -11,3 +11,4 @@ python-multipart
 python-dotenv
 chromadb
 email-validator
+google-auth

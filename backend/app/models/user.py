@@ -12,9 +12,15 @@ class UserBase(BaseModel):
     cv_url: Optional[str] = ""
     linkedin_url: Optional[str] = ""
     github_url: Optional[str] = ""
+    google_id: Optional[str] = None
+    auth_provider: str = "local"  # "local" ou "google"
+    avatar_url: Optional[str] = ""
 
 class UserCreate(UserBase):
     password: str
+
+class GoogleLoginRequest(BaseModel):
+    credential: str  # id_token envoyé par Google
 
 class UserInDB(UserBase):
     id: str = Field(alias="_id")
