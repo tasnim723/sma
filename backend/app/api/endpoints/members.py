@@ -9,6 +9,24 @@ from app.services.activity_log import log_activity
 
 router = APIRouter()
 
+@router.patch("/me")
+async def update_my_profile(member_in: UserUpdate, current_user: dict = Depends(get_current_user)):
+    """Permet à l'utilisateur connecté de mettre à jour son propre profil."""
+    db = get_database()
+    update_data = {k: v for k, v in member_in.model_dump().items() if v is not None}
+    if not update_data:
+        return {"message": "Rien à mettre à jour"}
+    await db["users"].update_one(
+        {"_id": current_user["_id"]},
+        {"$set": update_data}
+    )
+    updated_user = await db["users"].find_one({"_id": current_user["_id"]})
+    if updated_user:
+        updated_user["id"] = str(updated_user.pop("_id"))
+        updated_user.pop("hashed_password", None)
+        return updated_user
+    return {"message": "Profil mis à jour"}
+
 @router.get("/", response_model=List[UserResponse])
 async def list_members(current_user: dict = Depends(get_current_user)):
     db = get_database()
