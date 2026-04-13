@@ -1,0 +1,4 @@
+Testing gatekeeper_system with astream...
+UPDATE: ['stubborn']
+Node stubborn returned messages: 1
+  -> AIMessage: tool_calls=[]

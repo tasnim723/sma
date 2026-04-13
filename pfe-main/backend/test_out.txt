@@ -1,0 +1,9 @@
+--- GLOBAL TEST START ---
+Email Target: hajritasnim7@gmail.com
+WhatsApp Target: +21629138467
+SUCCESS: Email sent to hajritasnim7@gmail.com
+ERROR: WhatsApp fail to +21629138467: TwilioRestException - HTTP 400 error: Unable to create record: Twilio could not find a Channel with the specified From address
+
+--- FINAL RESULTS ---
+EMAIL: SUCCESS (Check Inbox)
+WHATSAPP: FAILED (Check Twilio credentials or Sandbox connection)
