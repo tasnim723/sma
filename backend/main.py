@@ -6,7 +6,7 @@ import os
 
 load_dotenv(override=True)
 
-from app.api.endpoints import auth, projects, tasks, alerts, ai, upload, members, specifications, hub, wizard, tech
+from app.api.endpoints import auth, projects, tasks, alerts, ai, upload, members, specifications, hub, wizard, tech, benchmarking, brainstorming
 
 app = FastAPI(title="Multi-Agent Project Manager", version="0.1.0")
 
@@ -33,6 +33,8 @@ app.include_router(specifications.router, prefix="/api/specifications", tags=["s
 app.include_router(hub.router, prefix="/api/hub", tags=["hub"])
 app.include_router(wizard.router, prefix="/api/wizard", tags=["wizard"])
 app.include_router(tech.router, prefix="/api/tech", tags=["tech"])
+app.include_router(benchmarking.router, prefix="/api/benchmarking", tags=["benchmarking"])
+app.include_router(brainstorming.router, prefix="/api/brainstorming", tags=["brainstorming"])
 
 @app.get("/")
 async def root():

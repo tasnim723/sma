@@ -1,13 +1,14 @@
 "use client"
 
 import MultiAgentChat from "@/components/ai/MultiAgentChat"
-import { Calendar, Activity, Lightbulb, ShieldAlert, MessageCircle, Zap, Bot } from "lucide-react"
+import { Calendar, Activity, Lightbulb, ShieldAlert, MessageCircle, Zap, Bot, Award } from "lucide-react"
 
 const AVAILABLE_AGENTS = [
   { id: 'ai', title: 'Assistant I.A.', subtitle: 'Orchestrateur Global', icon: Bot, color: 'bg-[#00CCCC]', shadow: 'shadow-[#00CCCC]/30' },
   { id: 'plan', title: 'Planification', subtitle: 'Sprints & Dépend.', icon: Calendar, color: 'bg-[#008f88]', shadow: 'shadow-[#008f88]/30' },
   { id: 'kpi', title: 'Suivi & KPI', subtitle: 'Alertes & Dashboards', icon: Activity, color: 'bg-[#138d58]', shadow: 'shadow-[#138d58]/30' },
   { id: 'inno', title: 'Innovation', subtitle: 'Veille Tech', icon: Lightbulb, color: 'bg-[#c3821a]', shadow: 'shadow-[#c3821a]/30' },
+  { id: 'bench', title: 'Benchmarking', subtitle: 'Analyse Marché', icon: Award, color: 'bg-[#00CCCC]', shadow: 'shadow-[#00CCCC]/30' },
   { id: 'risk', title: 'Risques', subtitle: 'Couverture Risques', icon: ShieldAlert, color: 'bg-[#bc3234]', shadow: 'shadow-[#bc3234]/30' },
   { id: 'comm', title: 'Communication', subtitle: 'Reporting Auto', icon: MessageCircle, color: 'bg-[#a52c2d]', shadow: 'shadow-[#a52c2d]/30' },
   { id: 'deci', title: 'Décision', subtitle: 'Recommandations', icon: Zap, color: 'bg-[#bb3072]', shadow: 'shadow-[#bb3072]/30' }

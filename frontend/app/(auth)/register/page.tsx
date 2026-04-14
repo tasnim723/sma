@@ -386,10 +386,13 @@ export default function RegisterPage() {
           <AnimatePresence>
             {error && (
               <motion.div
-                initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}
-                className="text-[13px] rounded-2xl border border-red-200 bg-red-50/80 px-4 py-3 text-red-600 font-[600] text-center mb-4"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="flex items-center justify-center gap-1.5 py-1 px-3 mb-2 bg-red-50/80 border border-red-100 rounded-full"
               >
-                {error}
+                <div className="w-1 h-1 bg-red-400 rounded-full animate-pulse" />
+                <span className="text-[11px] font-[700] text-red-600">{error}</span>
               </motion.div>
             )}
           </AnimatePresence>
@@ -411,7 +414,7 @@ export default function RegisterPage() {
                     value={password} onChange={setPassword} required
                     rightEl={
                       <button type="button" onClick={() => setShowPassword(!showPassword)} className="text-[#00BCD4] hover:text-[#0096a8] transition-colors">
-                        {showPassword ? <EyeOff className="h-4 w-4" strokeWidth={2.5} /> : <Eye className="h-4 w-4" strokeWidth={2.5} />}
+                        {showPassword ? <Eye className="h-4 w-4" strokeWidth={2.5} /> : <EyeOff className="h-4 w-4" strokeWidth={2.5} />}
                       </button>
                     }
                   />
@@ -420,7 +423,7 @@ export default function RegisterPage() {
                     value={confirmPassword} onChange={setConfirmPassword} required
                     rightEl={
                       <button type="button" onClick={() => setShowConfirm(!showConfirm)} className="text-[#00BCD4] hover:text-[#0096a8] transition-colors">
-                        {showConfirm ? <EyeOff className="h-4 w-4" strokeWidth={2.5} /> : <Eye className="h-4 w-4" strokeWidth={2.5} />}
+                        {showConfirm ? <Eye className="h-4 w-4" strokeWidth={2.5} /> : <EyeOff className="h-4 w-4" strokeWidth={2.5} />}
                       </button>
                     }
                   />

@@ -47,3 +47,6 @@ class UserUpdate(BaseModel):
     linkedin_url: Optional[str] = None
     cv_url: Optional[str] = None
     phone_number: Optional[str] = None
+
+class GoogleLoginRequest(BaseModel):
+    token: str

@@ -114,13 +114,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             {!isCollapsed && <p className="px-5 text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3">Intelligence</p>}
             <div className="space-y-2">
               {user?.role === "PROJECT_MANAGER" && (
-                 <Link
-                   href="/ai-insights"
-                   className={`flex items-center gap-4 px-5 py-3 rounded-2xl font-semibold transition-all group text-slate-600 hover:text-rose-600 hover:bg-rose-50 shadow-sm border border-transparent hover:border-rose-100 ${isCollapsed ? 'justify-center px-2' : ''}`}
-                 >
-                   <span className="shrink-0 transition-transform group-hover:scale-110 text-rose-400"><Zap size={20} strokeWidth={2} /></span>
-                   {!isCollapsed && <span className="text-[16px] tracking-tight">Orchestrateur IA</span>}
-                 </Link>
+                 <>
+                   <Link
+                     href="/ai-insights"
+                     className={`flex items-center gap-4 px-5 py-3 rounded-2xl font-semibold transition-all group text-slate-600 hover:text-rose-600 hover:bg-rose-50 shadow-sm border border-transparent hover:border-rose-100 ${isCollapsed ? 'justify-center px-2' : ''}`}
+                   >
+                     <span className="shrink-0 transition-transform group-hover:scale-110 text-rose-400"><Zap size={20} strokeWidth={2} /></span>
+                     {!isCollapsed && <span className="text-[16px] tracking-tight">Orchestrateur IA</span>}
+                   </Link>
+                   <Link
+                     href="/brainstorming"
+                     className={`flex items-center gap-4 px-5 py-3 rounded-2xl font-semibold transition-all group text-slate-600 hover:text-[#00CCCC] hover:bg-cyan-50 shadow-sm border border-transparent hover:border-cyan-100 ${isCollapsed ? 'justify-center px-2' : ''}`}
+                   >
+                     <span className="shrink-0 transition-transform group-hover:scale-110 text-[#00CCCC]"><Flame size={20} strokeWidth={2} /></span>
+                     {!isCollapsed && <span className="text-[16px] tracking-tight">War Room</span>}
+                   </Link>
+                 </>
               )}
               
                <Link

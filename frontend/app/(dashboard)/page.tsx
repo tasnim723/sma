@@ -7,12 +7,14 @@ import {
   Users, Zap, Bell, CheckCircle2, AlertTriangle, 
   ListChecks, ArrowRight, Layers, Bot, Sparkles,
   Search, Filter, MoreHorizontal, LayoutDashboard, Settings, Edit3, Award, Code, Rocket, FlaskConical, Boxes, Palette,
-  Check, Trash2, Star
+  Check, Trash2, Star, Lightbulb
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import axios from "axios"
 import Link from "next/link"
 import { motion, AnimatePresence, Variants } from "framer-motion"
+import BenchmarkingRadar from "@/components/benchmarking/BenchmarkingRadar"
+import InnovationFunnel from "@/components/innovation/InnovationFunnel"
 
 const containerVariants: Variants = {
   hidden: { opacity: 0 },
@@ -242,10 +244,18 @@ function ManagerDashboard({ user, token }: any) {
       <motion.div variants={containerVariants} initial="hidden" animate="visible" className="flex flex-col h-full p-4 md:p-8 space-y-6 pb-2 min-h-0">
          {/* Stats Row */}
          <motion.div variants={itemVariants} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <KPICard title="PROJETS ACTIFS" value={stats.activeProjects} icon={<BarChart3 />} color="text-amber-500" bg="glow-yellow" />
-            <KPICard title="TÂCHES RÉUSSIES" value={stats.completedTasks} icon={<CheckCircle2 />} color="text-rose-500" bg="glow-red" />
-            <KPICard title="ALERTES DÉLAIS" value={stats.upcomingDeadlines} icon={<Clock />} color="text-sky-500" bg="glow-blue" />
-            <KPICard title="CHARGE ÉQUIPE" value={stats.teamCapacity} icon={<Users />} color="text-emerald-500" bg="glow-green" />
+            <KPICard title="TREATS DETECTED" value={stats.activeProjects + 4} icon={<FlaskConical />} color="text-amber-500" bg="glow-yellow" />
+            <KPICard title="INNOVATIONS" value={stats.completedTasks + 12} icon={<Lightbulb />} color="text-rose-500" bg="glow-red" />
+            <KPICard title="MARKET TRENDS" value={stats.upcomingDeadlines + 8} icon={<TrendingUp />} color="text-sky-500" bg="glow-blue" />
+            <KPICard title="BENCHMARK SCORE" value="84%" icon={<Award />} color="text-emerald-500" bg="glow-green" />
+         </motion.div>
+
+         {/* Innovation Funnel Section */}
+         <motion.div variants={itemVariants} className="px-2">
+            <h2 className="text-xs font-black tracking-[0.2em] text-slate-400 uppercase mb-4 flex items-center gap-2">
+               <Rocket size={14} className="text-[#00CCCC]" /> Pipeline d'Innovation
+            </h2>
+            <InnovationFunnel />
          </motion.div>
 
          <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 items-stretch flex-1 min-h-0">
@@ -352,11 +362,34 @@ function ManagerDashboard({ user, token }: any) {
                   whileHover={{ y: -2 }}
                   className="relative group cursor-pointer shrink-0"
                >
+                     <div className="relative nexus-glass rounded-[2rem] px-6 py-6 text-slate-800 overflow-hidden bg-white/40 backdrop-blur-2xl border border-white/50">
+                        <div className="flex justify-between items-center mb-4">
+                           <h3 className="font-black tracking-widest text-[12px] text-slate-700 uppercase">Benchmarking Radar</h3>
+                           <Badge className="bg-[#00CCCC] text-white border-none text-[10px]">ALPHA v2</Badge>
+                        </div>
+                        <BenchmarkingRadar data={[
+                           { subject: 'Perf', A: 8, B: 6, fullMark: 10 },
+                           { subject: 'Innov', A: 9, B: 5, fullMark: 10 },
+                           { subject: 'UX', A: 7, B: 8, fullMark: 10 },
+                           { subject: 'Coût', A: 6, B: 7, fullMark: 10 },
+                           { subject: 'Délai', A: 8, B: 4, fullMark: 10 }
+                        ]} />
+                        <div className="mt-4 flex items-center justify-between text-[10px] font-black uppercase text-slate-400">
+                           <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-[#00CCCC]" /> Notre Projet</div>
+                           <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-[#FF0000]/40" /> Industrie</div>
+                        </div>
+                     </div>
+               </motion.div>
+
+               <motion.div 
+                  whileHover={{ y: -2 }}
+                  className="relative group cursor-pointer shrink-0"
+               >
                      <div className="relative nexus-glass rounded-[2rem] px-5 py-4 text-slate-800 overflow-hidden min-h-[130px] flex flex-col justify-center bg-white/40 backdrop-blur-2xl border border-white/50">
                         <div className="absolute top-0 right-0 w-32 h-32 bg-[#00BCD4]/5 rounded-full blur-3xl -mr-16 -mt-16" />
                         
                         <div className="relative z-10 w-[70%]">
-                           <p className="text-[10px] font-black tracking-widest text-slate-400 uppercase mb-2">Vision IA Augmentée</p>
+                           <p className="text-[10px] font-black tracking-widest text-slate-400 uppercase mb-2">Analyse de l'Innovation</p>
                            <div className="relative">
                               <span className="absolute -left-2 top-0 text-2xl text-[#00BCD4]/20 font-serif">"</span>
                               <p className="text-[13px] font-bold text-slate-700 leading-snug pl-4 pr-2 italic">

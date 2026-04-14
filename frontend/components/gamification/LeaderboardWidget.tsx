@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Trophy, ChevronDown } from "lucide-react"
+import { Trophy, ChevronDown, Shield, Flame, Rocket } from "lucide-react"
 import axios from "axios"
 import { useAuthStore } from "@/lib/store"
 
@@ -66,21 +66,21 @@ export default function LeaderboardWidget() {
                 <div className="absolute inset-0 bg-gradient-to-tr from-white/10 via-transparent to-transparent pointer-events-none" />
                 
                 <div className="text-center mb-4 relative z-10">
-                    <h3 className="text-[10px] font-black tracking-[0.2em] text-[#334155] uppercase leading-tight flex flex-col items-center">
-                        Maîtres de
-                        <span className="text-[11px] mt-0.5">l'Innovation</span>
+                    <h3 className="text-[11px] font-black tracking-[0.2em] text-[#334155] uppercase leading-tight flex flex-col items-center">
+                        Classement
+                        <span className="text-[12px] mt-0.5">Hebdomadaire</span>
                     </h3>
                     
                     {/* Integrated Badges Row */}
                     <div className="flex items-center justify-center gap-2 mt-4 pb-2 border-b border-white/50">
                         {[
-                            { color: "bg-rose-200",   shadow: "shadow-rose-200",   icon: "⚡", label: "Générateur de Sparks" },
-                            { color: "bg-orange-200", shadow: "shadow-orange-200", icon: "👁️", label: "Le Visionnaire" },
-                            { color: "bg-sky-200",    shadow: "shadow-sky-200",    icon: "📐", label: "L'Architecte" },
-                            { color: "bg-amber-200",  shadow: "shadow-amber-200",  icon: "⚖️", label: "L'Avocat du Diable" }
+                            { color: "bg-rose-100",   shadow: "shadow-rose-200",   icon: <Shield size={18} fill="currentColor" />, text: "text-rose-500", label: "Starter" },
+                            { color: "bg-orange-100", shadow: "shadow-orange-200", icon: <Flame size={18} fill="currentColor" />, text: "text-orange-500", label: "Bronze" },
+                            { color: "bg-sky-100",    shadow: "shadow-sky-200",    icon: <Rocket size={18} fill="currentColor" />, text: "text-sky-500", label: "Silver" },
+                            { color: "bg-amber-100",  shadow: "shadow-amber-200",  icon: <Trophy size={18} fill="currentColor" />, text: "text-amber-500", label: "Gold" }
                         ].map((b, i) => (
                             <div key={i} className="relative group/badge">
-                                <div className={`w-10 h-10 rounded-xl ${b.color} ${b.shadow} shadow-md flex items-center justify-center text-[18px] border border-white/60 cursor-pointer transition-transform hover:scale-110 hover:-translate-y-1 duration-200`}>
+                                <div className={`w-10 h-10 rounded-xl ${b.color} ${b.shadow} shadow-md flex items-center justify-center ${b.text} border border-white/60 cursor-pointer transition-transform hover:scale-110 hover:-translate-y-1 duration-200`}>
                                     {b.icon}
                                 </div>
                                 {/* Tooltip */}
