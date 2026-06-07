@@ -22,3 +22,24 @@ dist/
 .next/
 out/
 build/
+
+# MongoDB local data (ne pas pousser les données brutes)
+backend/mongodb_data/
+backend/mongodb_data_original/
+backend/recovered_db/
+backend/tmp_db/
+uploads/
+backend/uploads/
+
+# Scratch / debug files
+backend/scratch/
+frontend/scratch/
+backend/out.txt
+backend/query
+backend/pyrightconfig.json.bak
+*.txt
+*.json
+!package.json
+!package-lock.json
+!tsconfig.json
+!components.json
