@@ -3,6 +3,8 @@ import path from "path";
 
 const nextConfig: NextConfig = {
   productionBrowserSourceMaps: false,
+  // Silence Turbopack warning on Vercel — webpack config below handles production
+  turbopack: {},
   webpack: (config, { isServer }) => {
     // Ensure modules resolve from the frontend directory
     config.resolve.modules = [
