@@ -14,23 +14,23 @@ async def run_orchestrator(query: str) -> str:
     # The Idéateur generates initial raw concepts
     ideateur_res = await ideateur_agent.llm.ainvoke([
         {"role": "system", "content": ideateur_agent.system_prompt},
-        {"role": "user", "content": f"Sujet de brainstorming : {query}\nLance 3 idées radicales maintenant."}
+        {"role": "user", "content": f"Sujet de brainstorming : {query}\nGénère exactement 10 idées radicales et distinctes, numérotées de 1 à 10. Sois audacieux mais TRÈS CONCIS (1 seule phrase courte par idée pour être rapide)."}
     ])
     
     # The Critique Constructif pivot-rebounds on these ideas (Yes, and...)
     critique_res = await critique_agent.llm.ainvoke([
         {"role": "system", "content": critique_agent.system_prompt},
-        {"role": "user", "content": f"Rebondis sur ces idées de l'idéateur avec la méthode 'Yes, and...':\n{ideateur_res.content}"}
+        {"role": "user", "content": f"L'idéateur a généré 10 idées. Pour chacune des 10 idées, applique la méthode 'Yes, and...' de manière EXTRÊMEMENT RAPIDE ET COURTE (1 phrase par idée maximum). :\n{ideateur_res.content}"}
     ])
     
     # [PHASE 2: CONVERGENCE] - Summarize and structure
     # The Synthétiseur selects and structures the final output
     synthetiseur_res = await synthetiseur_agent.llm.ainvoke([
         {"role": "system", "content": synthetiseur_agent.system_prompt},
-        {"role": "user", "content": f"Discussion de divergence :\nIdéateur : {ideateur_res.content}\nCritique : {critique_res.content}\n\nSynthétise le tout en extrayant les 3 concepts les plus prometteurs pour le futur."}
+        {"role": "user", "content": f"L'idéateur a proposé 10 idées et le critique les a évaluées. Parmi ces 10 idées, SÉLECTIONNE et CLASSE les 3 meilleures. Justifie de manière très concise (1 ou 2 lignes par idée) et ajoute une courte phrase expliquant pourquoi les autres sont écartées.\n\n--- 10 IDÉES ---\n{ideateur_res.content}\n\n--- ÉVALUATION CRITIQUE ---\n{critique_res.content}"}
     ])
     
-    return f"[RAPPORT D'INNOVATION SMA]\n\n🚀 PHASE DE DIVERGENCE (Idéation) :\n{ideateur_res.content}\n\n🛠️ PHASE DE REBOND (Critique Constructif) :\n{critique_res.content}\n\n✨ SYNTHÈSE FINALE (Concepts retenus) :\n{synthetiseur_res.content}"
+    return f"[RAPPORT D'INNOVATION SMA]\n\n🧠 PHASE DE DIVERGENCE — 10 Idées Générées :\n{ideateur_res.content}\n\n🛠️ PHASE D'ÉVALUATION — Critique Constructif (Yes, and...) :\n{critique_res.content}\n\n🏆 SÉLECTION FINALE — Les 3 Meilleures Idées (choisies parmi 10) :\n{synthetiseur_res.content}"
 
 class GatewayState(TypedDict):
     messages: Annotated[Sequence[BaseMessage], operator.add]

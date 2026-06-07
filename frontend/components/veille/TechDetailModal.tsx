@@ -1,3 +1,4 @@
+import { API_BASE_URL } from "@/lib/api"
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Layers, Check, Play, FileText, ExternalLink, Sparkles, Clock } from "lucide-react";
@@ -39,7 +40,7 @@ const TechDetailModal: React.FC<TechDetailModalProps> = ({
   const fetchProjects = async () => {
     setIsLoading(true);
     try {
-      const response = await axios.get("http://localhost:8000/api/projects", {
+      const response = await axios.get(`${API_BASE_URL}/api/projects`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setProjects(response.data);
@@ -54,7 +55,7 @@ const TechDetailModal: React.FC<TechDetailModalProps> = ({
     if (!article) return;
     setIsApplying(true);
     try {
-      await axios.post("http://localhost:8000/api/tasks", {
+      await axios.post(`${API_BASE_URL}/api/tasks`, {
         title: `Explorer la technologie : ${article.title}`,
         description: `Il a été décidé d'étudier ou d'intégrer cette technologie.\n\nDescription: ${article.description}\nLien: ${article.link}`,
         project_id: projectId,

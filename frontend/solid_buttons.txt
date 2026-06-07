@@ -1,0 +1,6 @@
+Found 4 potential solid-bg buttons:
+
+Line 2607: className="flex-[2] bg-[#00BCD4] hover:bg-[#00ACC1] text-white py-6 rounded-2xl font-black uppercase tracking-widest tex
+Line 2678: ? 'bg-[#00BCD4] text-white shadow-[0_0_25px_rgba(0,188,212,0.8)] scale-110 opacity-100'
+Line 4919: <><div className="flex gap-1 mr-1.5">{[0, 1, 2].map(d => <div key={d} className="w-1 h-1 rounded-full bg-[#00BCD4] anima
+Line 6358: className="text-[9px] font-black text-white bg-[#00BCD4] hover:bg-[#0097a7] transition-colors flex items-center gap-1 up

@@ -1,4 +1,5 @@
 "use client"
+import { API_BASE_URL } from "@/lib/api"
 
 import { useEffect, useState } from "react"
 import axios from "axios"
@@ -7,9 +8,11 @@ import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, ListTodo } from "l
 import { format, startOfWeek, endOfWeek, addDays, startOfMonth, endOfMonth, isSameMonth, isSameDay, addMonths, subMonths } from "date-fns"
 import TaskDetailModal from "@/components/kanban/TaskDetailModal"
 import { Task } from "@/components/kanban/KanbanBoard"
+import { useLang } from "@/lib/useLang"
 
 export default function CalendarPage() {
   const token = useAuthStore(state => state.token)
+  const { t, lang } = useLang()
   const [tasks, setTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
   const [currentMonth, setCurrentMonth] = useState(new Date())
@@ -20,8 +23,8 @@ export default function CalendarPage() {
   const fetchData = async () => {
     try {
       const [tasksRes, usersRes] = await Promise.all([
-        axios.get(`http://localhost:8000/api/tasks/me/all`, { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get(`http://localhost:8000/api/members/`, { headers: { Authorization: `Bearer ${token}` } })
+        axios.get(`${API_BASE_URL}/api/tasks/me/all`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`${API_BASE_URL}/api/members/`, { headers: { Authorization: `Bearer ${token}` } })
       ])
       setTasks(tasksRes.data || [])
       setTeamMembers(usersRes.data || [])
@@ -41,7 +44,7 @@ export default function CalendarPage() {
 
   const handleUpdateTask = async (taskId: string, updates: Partial<Task>) => {
     try {
-      const res = await axios.put(`http://localhost:8000/api/tasks/${taskId}`, 
+      const res = await axios.put(`${API_BASE_URL}/api/tasks/${taskId}`, 
         updates,
         { headers: { Authorization: `Bearer ${token}` } }
       )
@@ -54,7 +57,7 @@ export default function CalendarPage() {
   const handleDeleteTask = async (taskId: string) => {
     if (!confirm("Are you sure you want to delete this task?")) return
     try {
-      await axios.delete(`http://localhost:8000/api/tasks/${taskId}`, 
+      await axios.delete(`${API_BASE_URL}/api/tasks/${taskId}`, 
         { headers: { Authorization: `Bearer ${token}` } }
       )
       setTasks(tasks.filter((t: any) => t._id !== taskId))
@@ -172,14 +175,14 @@ export default function CalendarPage() {
                <CalendarIcon size={24} className="text-blue-600" />
             </div>
             <div>
-               <h2 className="text-2xl font-bold text-slate-800">My Deadlines</h2>
-               <p className="text-slate-500 font-medium text-sm">Keep track of your upcoming task deliveries.</p>
+               <h2 className="text-2xl font-bold text-slate-800">{lang === 'fr' ? 'Mes Échéances' : 'My Deadlines'}</h2>
+               <p className="text-slate-500 font-medium text-sm">{lang === 'fr' ? 'Suivez vos prochaines livraisons.' : 'Keep track of your upcoming task deliveries.'}</p>
             </div>
          </div>
       </div>
 
       {loading ? (
-        <div className="p-12 text-center text-slate-500 font-medium">Loading calendar...</div>
+        <div className="p-12 text-center text-slate-500 font-medium">{lang === 'fr' ? 'Chargement du calendrier...' : 'Loading calendar...'}</div>
       ) : (
         <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-8 max-w-6xl mx-auto">
           {renderHeader()}

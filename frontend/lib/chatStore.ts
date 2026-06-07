@@ -8,7 +8,7 @@ export interface Message {
 
 const defaultMessage: Message = { 
   role: "ai", 
-  content: "I am your AI Orchestrator. How can I help you manage your workspace today?" 
+  content: "Je suis votre AI Orchestrator. Comment puis-je vous aider à gérer votre espace de travail aujourd'hui ?" 
 }
 
 interface ChatState {

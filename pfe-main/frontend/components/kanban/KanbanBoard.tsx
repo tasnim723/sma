@@ -47,37 +47,6 @@ const TaskCard = ({ task, teamMembers, onClick, onAIReview, isReviewing }: {
       )}
 
       <div className="mt-2 flex flex-col gap-2">
-        <div className="flex items-center justify-between">
-          {(() => {
-            if (teamMembers && task.assignee_ids && task.assignee_ids.length > 0) {
-              const member = teamMembers.find((m: any) => m.id === task.assignee_ids![0]);
-              return (
-                 <div className="flex items-center gap-2 min-w-0">
-                  <div className="w-5 h-5 rounded-full bg-[#00BCD4]/10 border border-[#00BCD4]/20 flex items-center justify-center text-[10px] font-black text-[#00BCD4] shrink-0">
-                    {member ? member.full_name.charAt(0) : 'U'}
-                  </div>
-                  <span className="text-[11px] font-black text-slate-400 uppercase tracking-tight truncate">
-                    {member ? member.full_name : 'Assigned'}
-                  </span>
-                </div>
-              )
-            }
-            return (
-              <span className="text-[11px] font-black text-slate-300 uppercase tracking-tight">Non assigné</span>
-            )
-          })()}
-
-          {task.assignee_ids && task.assignee_ids.length > 1 && (
-            <div className="flex -space-x-1.5 pointer-events-none">
-                {task.assignee_ids.slice(1, 3).map((aId, i) => (
-                  <div key={i} className="w-4 h-4 rounded-full bg-white border border-slate-100 flex items-center justify-center text-[8px] font-black text-slate-400 shadow-tiny">
-                    +
-                  </div>
-                ))}
-            </div>
-          )}
-        </div>
-
         {task.status === 'REVIEW' && onAIReview && (
           <button
             onClick={(e) => {
@@ -112,7 +81,7 @@ export default function KanbanBoard({ initialTasks, teamMembers, onSelectTask, o
   const tasks = initialTasks || []
   const user = useAuthStore(state => state.user)
   const isManager = user?.role === "PROJECT_MANAGER"
-  const columns = isManager ? ["BACKLOG", "TODO", "IN_PROGRESS", "REVIEW", "DONE"] : ["TODO", "IN_PROGRESS", "REVIEW", "DONE"]
+  const columns = ["TODO", "IN_PROGRESS", "REVIEW", "DONE"]
 
   return (
     <div className="flex gap-3 overflow-x-auto pb-4 h-[calc(100vh-220px)] custom-scrollbar">

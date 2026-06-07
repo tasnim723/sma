@@ -4,9 +4,11 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import axios from "axios"
 import { useAuthStore } from "@/lib/store"
+import { API_BASE_URL } from "@/lib/api"
 import { Github, Linkedin, Briefcase, Sparkles, CheckCircle2, ChevronRight } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import Image from "next/image"
+import { useThemeStore } from "@/lib/themeStore"
 
 const SKILLS_OPTIONS = [
   "React", "Next.js", "TypeScript", "Python", "FastAPI", "Node.js",
@@ -38,6 +40,7 @@ export default function CompleteProfilePage() {
   const token = useAuthStore((state) => state.token)
   const user = useAuthStore((state) => state.user)
   const setUser = useAuthStore((state) => state.setUser)
+  const { theme } = useThemeStore()
 
   useEffect(() => {
     if (!token) {
@@ -57,7 +60,7 @@ export default function CompleteProfilePage() {
     setLoading(true)
     try {
       await axios.patch(
-        `http://127.0.0.1:8000/api/members/me`,
+        `${API_BASE_URL}/api/members/me`,
         {
           github_url: githubUrl,
           linkedin_url: linkedinUrl,
@@ -87,17 +90,28 @@ export default function CompleteProfilePage() {
   }
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center relative bg-[#f1f5f9] font-sans overflow-hidden">
+    <div className={`min-h-screen w-full flex items-center justify-center font-sans relative overflow-hidden transition-colors duration-700 ${theme === 'dark' ? 'bg-[#020617]' : 'bg-[#f1f5f9]'}`}>
       {/* Background */}
-      <div className="absolute inset-0 z-0">
-        <Image
-          src="/images/custom_background.png"
-          alt="Background"
-          fill
-          priority
-          className="object-cover opacity-90"
-        />
-        <div className="absolute inset-0 bg-white/20 backdrop-blur-sm" />
+      <div className="absolute inset-0 z-0 transition-all duration-700">
+        {theme === 'light' ? (
+          <>
+            <Image src="/images/custom_background.png" alt="bg" fill priority className="object-cover opacity-90" />
+            <div className="absolute inset-0 bg-white/20 backdrop-blur-sm" />
+          </>
+        ) : (
+          <div className="absolute inset-0 bg-[#020617] overflow-hidden">
+            {/* Gamified Background Elements */}
+            <div className="absolute inset-0 opacity-[0.2]" 
+                 style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, #1e40af 1px, transparent 0)', backgroundSize: '32px 32px' }} />
+            
+            <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-600/20 rounded-full blur-[120px] animate-pulse" />
+            <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-indigo-600/20 rounded-full blur-[120px] animate-pulse" style={{ animationDelay: '2s' }} />
+            
+            {/* Grid line */}
+            <div className="absolute inset-0 opacity-[0.05]" 
+                 style={{ backgroundImage: 'linear-gradient(#3b82f6 1px, transparent 1px), linear-gradient(90deg, #3b82f6 1px, transparent 1px)', backgroundSize: '100px 100px' }} />
+          </div>
+        )}
       </div>
 
       {/* Card */}
@@ -130,18 +144,22 @@ export default function CompleteProfilePage() {
         </div>
 
         <div
-          className="w-full bg-white/10 backdrop-blur-3xl rounded-[32px] px-8 sm:px-10 pt-10 pb-8 relative overflow-hidden"
-          style={{
-            boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.6), -15px 0 45px -15px rgba(255, 0, 0, 0.2), 15px 0 45px -15px rgba(0, 188, 212, 0.2), 0 10px 40px -10px rgba(0,0,0,0.1)'
-          }}
+          className={`w-full backdrop-blur-3xl rounded-[32px] px-8 sm:px-10 pt-10 pb-8 relative overflow-hidden transition-all duration-500 ${
+            theme === 'dark' 
+              ? 'bg-[#0f172a]/60 border border-blue-500/20 shadow-[0_20px_50px_rgba(0,0,0,0.5),0_0_20px_rgba(30,58,138,0.3)]' 
+              : 'bg-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.1),inset_0_0_0_1px_rgba(255,255,255,0.6)]'
+          }`}
+          style={theme === 'light' ? { boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.6), -15px 0 45px -15px rgba(255,0,0,0.2), 15px 0 45px -15px rgba(0,188,212,0.2), 0 10px 40px -10px rgba(0,0,0,0.1)' } : {}}
         >
           {/* Header */}
           <div className="flex flex-col items-center mb-6">
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#00BCD4]/20 to-[#00BCD4]/5 border border-[#00BCD4]/30 flex items-center justify-center mb-4">
-              <Sparkles className="w-6 h-6 text-[#00BCD4]" />
+            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-4 transition-colors ${
+              theme === 'dark' ? 'bg-blue-900/40 border border-blue-500/30' : 'bg-gradient-to-br from-[#00BCD4]/20 to-[#00BCD4]/5 border border-[#00BCD4]/30'
+            }`}>
+              <Sparkles className="w-6 h-6 text-[#00BCD4] dark:text-blue-400" />
             </div>
-            <h1 className="text-[22px] font-[900] text-[#0f172a] tracking-tight mb-1">Bienvenue !</h1>
-            <p className="text-[13px] font-[600] text-gray-500 text-center">
+            <h1 className="text-[22px] font-[900] text-[#0f172a] dark:text-blue-50 tracking-tight mb-1 transition-colors">Bienvenue !</h1>
+            <p className="text-[13px] font-[600] text-gray-500 dark:text-blue-400/60 text-center transition-colors">
               {user?.full_name ? `Bonjour ${user.full_name.split(" ")[0]} 👋` : "Complète ton profil pour commencer"}
             </p>
           </div>
@@ -151,7 +169,9 @@ export default function CompleteProfilePage() {
               <motion.div
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="absolute inset-0 bg-white/95 backdrop-blur-md rounded-[32px] flex flex-col items-center justify-center z-30 gap-4"
+                className={`absolute inset-0 backdrop-blur-md rounded-[32px] flex flex-col items-center justify-center z-30 gap-4 transition-colors duration-500 ${
+                  theme === 'dark' ? 'bg-[#020617]/95' : 'bg-white/95'
+                }`}
               >
                 <motion.div
                   initial={{ scale: 0 }}
@@ -160,8 +180,8 @@ export default function CompleteProfilePage() {
                 >
                   <CheckCircle2 className="w-16 h-16 text-[#00BCD4]" />
                 </motion.div>
-                <p className="text-[18px] font-[800] text-[#0f172a]">Profil enregistré !</p>
-                <p className="text-[13px] text-gray-500">Redirection vers le tableau de bord...</p>
+                <p className="text-[18px] font-[800] text-[#0f172a] dark:text-blue-50">Profil enregistré !</p>
+                <p className="text-[13px] text-gray-500 dark:text-blue-400/60">Redirection vers le tableau de bord...</p>
               </motion.div>
             )}
           </AnimatePresence>
@@ -182,43 +202,43 @@ export default function CompleteProfilePage() {
 
             {/* GitHub URL */}
             <div className="space-y-1.5">
-              <label className="text-[12.5px] font-[800] text-[#334155] px-1 block">GitHub</label>
+              <label className="text-[12.5px] font-[800] text-[#334155] dark:text-blue-400 px-1 block transition-colors">GitHub</label>
               <div className="relative flex items-center group">
-                <Github className="absolute left-4 h-[16px] w-[16px] text-[#00BCD4]" strokeWidth={2.5} />
+                <Github className="absolute left-4 h-[16px] w-[16px] text-[#00BCD4] dark:text-blue-400" strokeWidth={2.5} />
                 <input
                   type="url"
                   placeholder="https://github.com/monprofil"
                   value={githubUrl}
                   onChange={(e) => setGithubUrl(e.target.value)}
-                  className="w-full pl-[42px] pr-4 py-[13px] rounded-[18px] border-[1.5px] border-white bg-[#f1f5f9]/80 focus:bg-white focus:outline-none focus:ring-[3px] focus:ring-[#00BCD4]/20 focus:border-[#00BCD4]/50 text-[14px] text-gray-800 placeholder:text-gray-400 font-[600] transition-all"
+                  className="w-full pl-[42px] pr-4 py-[13px] rounded-[18px] border-[1.5px] border-white/80 dark:border-blue-500/20 bg-[#f1f5f9]/80 dark:bg-blue-950/40 focus:bg-white dark:focus:bg-blue-900/40 focus:outline-none focus:ring-[3px] focus:ring-[#00BCD4]/20 dark:focus:ring-blue-500/20 focus:border-[#00BCD4]/50 dark:focus:border-blue-400/50 text-[14px] text-gray-800 dark:text-blue-50 placeholder:text-gray-400 dark:placeholder:text-blue-800 font-[600] transition-all"
                 />
               </div>
             </div>
 
             {/* LinkedIn URL */}
             <div className="space-y-1.5">
-              <label className="text-[12.5px] font-[800] text-[#334155] px-1 block">LinkedIn</label>
+              <label className="text-[12.5px] font-[800] text-[#334155] dark:text-blue-400 px-1 block transition-colors">LinkedIn</label>
               <div className="relative flex items-center group">
-                <Linkedin className="absolute left-4 h-[16px] w-[16px] text-[#00BCD4]" strokeWidth={2.5} />
+                <Linkedin className="absolute left-4 h-[16px] w-[16px] text-[#00BCD4] dark:text-blue-400" strokeWidth={2.5} />
                 <input
                   type="url"
                   placeholder="https://linkedin.com/in/monprofil"
                   value={linkedinUrl}
                   onChange={(e) => setLinkedinUrl(e.target.value)}
-                  className="w-full pl-[42px] pr-4 py-[13px] rounded-[18px] border-[1.5px] border-white bg-[#f1f5f9]/80 focus:bg-white focus:outline-none focus:ring-[3px] focus:ring-[#00BCD4]/20 focus:border-[#00BCD4]/50 text-[14px] text-gray-800 placeholder:text-gray-400 font-[600] transition-all"
+                  className="w-full pl-[42px] pr-4 py-[13px] rounded-[18px] border-[1.5px] border-white/80 dark:border-blue-500/20 bg-[#f1f5f9]/80 dark:bg-blue-950/40 focus:bg-white dark:focus:bg-blue-900/40 focus:outline-none focus:ring-[3px] focus:ring-[#00BCD4]/20 dark:focus:ring-blue-500/20 focus:border-[#00BCD4]/50 dark:focus:border-blue-400/50 text-[14px] text-gray-800 dark:text-blue-50 placeholder:text-gray-400 dark:placeholder:text-blue-800 font-[600] transition-all"
                 />
               </div>
             </div>
 
             {/* Position */}
             <div className="space-y-1.5">
-              <label className="text-[12.5px] font-[800] text-[#334155] px-1 block">Poste</label>
+              <label className="text-[12.5px] font-[800] text-[#334155] dark:text-blue-400 px-1 block transition-colors">Poste</label>
               <div className="relative flex items-center group">
-                <Briefcase className="absolute left-4 h-[16px] w-[16px] text-[#00BCD4] z-10" strokeWidth={2.5} />
+                <Briefcase className="absolute left-4 h-[16px] w-[16px] text-[#00BCD4] dark:text-blue-400 z-10" strokeWidth={2.5} />
                 <select
                   value={position}
                   onChange={(e) => setPosition(e.target.value)}
-                  className="w-full pl-[42px] pr-4 py-[13px] rounded-[18px] border-[1.5px] border-white bg-[#f1f5f9]/80 focus:bg-white focus:outline-none focus:ring-[3px] focus:ring-[#00BCD4]/20 focus:border-[#00BCD4]/50 text-[14px] text-gray-800 font-[600] transition-all appearance-none"
+                  className="w-full pl-[42px] pr-4 py-[13px] rounded-[18px] border-[1.5px] border-white/80 dark:border-blue-500/20 bg-[#f1f5f9]/80 dark:bg-blue-950/40 focus:bg-white dark:focus:bg-blue-900/40 focus:outline-none focus:ring-[3px] focus:ring-[#00BCD4]/20 dark:focus:ring-blue-500/20 focus:border-[#00BCD4]/50 dark:focus:border-blue-400/50 text-[14px] text-gray-800 dark:text-blue-50 font-[600] transition-all appearance-none"
                 >
                   <option value="">Sélectionner un poste...</option>
                   {POSITIONS.map((p) => (
@@ -230,9 +250,9 @@ export default function CompleteProfilePage() {
 
             {/* Skills */}
             <div className="space-y-2">
-              <label className="text-[12.5px] font-[800] text-[#334155] px-1 block">
+              <label className="text-[12.5px] font-[800] text-[#334155] dark:text-blue-400 px-1 block transition-colors">
                 Compétences
-                <span className="ml-2 text-[11px] font-[600] text-gray-400">({selectedSkills.length} sélectionnée{selectedSkills.length > 1 ? "s" : ""})</span>
+                <span className="ml-2 text-[11px] font-[600] text-gray-400 dark:text-blue-800 transition-colors">({selectedSkills.length} sélectionnée{selectedSkills.length > 1 ? "s" : ""})</span>
               </label>
               <div className="flex flex-wrap gap-2">
                 {SKILLS_OPTIONS.map((skill) => {
@@ -246,7 +266,7 @@ export default function CompleteProfilePage() {
                       className={`px-3 py-1.5 rounded-[12px] text-[12px] font-[700] border-[1.5px] transition-all duration-200 ${
                         isSelected
                           ? "bg-[#00BCD4] border-[#00BCD4] text-white shadow-[0_2px_8px_rgba(0,188,212,0.35)]"
-                          : "bg-white/60 border-gray-200 text-gray-600 hover:border-[#00BCD4]/40 hover:bg-white"
+                          : (theme === 'dark' ? "bg-blue-900/40 border-blue-500/20 text-blue-300 hover:border-blue-400/40" : "bg-white/60 border-gray-200 text-gray-600 hover:border-[#00BCD4]/40 hover:bg-white")
                       }`}
                     >
                       {skill}
@@ -292,8 +312,8 @@ export default function CompleteProfilePage() {
           </form>
 
           {/* Footer */}
-          <div className="mt-8 pt-5 border-t border-gray-200/60 text-center">
-            <p className="text-[9px] font-[700] text-gray-400 uppercase tracking-widest">
+          <div className={`mt-8 pt-5 border-t text-center transition-colors ${theme === 'dark' ? 'border-blue-500/10' : 'border-gray-200/60'}`}>
+            <p className="text-[9px] font-[700] text-gray-400 dark:text-blue-900 uppercase tracking-widest transition-colors">
               NETINFO SMA © 2026 — Netinfo Nabeul
             </p>
           </div>

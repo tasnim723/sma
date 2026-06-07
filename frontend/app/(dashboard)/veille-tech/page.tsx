@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react"
 import { motion } from "framer-motion"
-import { Lightbulb } from "lucide-react"
+import { Lightbulb, RefreshCw } from "lucide-react"
 import axios from "axios"
 import FilterTabs from "@/components/veille/FilterTabs"
 import InnovationScore from "@/components/veille/InnovationScore"
@@ -12,18 +12,27 @@ import SuccessNotification from "@/components/veille/SuccessNotification"
 import { useAuthStore } from "@/lib/store"
 import TechGrid from "@/components/veille/TechGrid"
 import LeadRadarView from "@/components/veille/LeadRadarView"
+import { API_BASE_URL } from "@/lib/api"
+import { useLang } from "@/lib/useLang"
 
 const CATEGORIES = [
   "Tout",
-  "Dev Web & Mobile",
-  "Gaming & Unreal Engine",
-  "IT Management",
-  "3D & Unreal Engine"
+  "Développement",
+  "AI & Data",
+  "Infrastructure",
+  "Cybersécurité",
+  "Innovation"
 ]
 
 export default function VeilleTechPage() {
   const { token, user } = useAuthStore()
-  const [activeCategory, setActiveCategory] = useState("Tout")
+  const { t, lang } = useLang()
+
+  const CATEGORIES = lang === 'fr'
+    ? ["Tout", "Développement", "AI & Data", "Infrastructure", "Cybersécurité", "Innovation"]
+    : ["All", "Development", "AI & Data", "Infrastructure", "Cybersecurity", "Innovation"]
+
+  const [activeCategory, setActiveCategory] = useState(CATEGORIES[0])
   const [articles, setArticles] = useState<TechArticle[]>([])
   const [isLoading, setIsLoading] = useState(true)
   
@@ -39,50 +48,15 @@ export default function VeilleTechPage() {
     setIsLoading(true)
     try {
       const endpoint = category === "Tout" 
-        ? "http://localhost:8000/api/tech" 
-        : `http://localhost:8000/api/tech?category=${encodeURIComponent(category)}`
+        ? `${API_BASE_URL}/api/tech?t=${Date.now()}` 
+        : `${API_BASE_URL}/api/tech?category=${encodeURIComponent(category)}&t=${Date.now()}`
       
       const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {}
       const response = await axios.get(endpoint, config)
       
-      // If db is empty, inject mock data to look like the design while testing
-      if (response.data.length === 0) {
-          const now = new Date().toISOString();
-          setArticles([
-            {
-              id: "gen1",
-              title: "Unreal Engine 5.7+ Mover Framework Tutorial",
-              description: "Learn how to use the Mover Framework in Unreal Engine 5.7+ to create complex character movements and interactions with cinematic fidelity...",
-              category: "Gaming & Unreal Engine",
-              type: "VIDEO",
-              priority: "Haute priorité",
-              link: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-              created_at: now
-            },
-            {
-              id: "gen2",
-              title: "Agentic Workflows for AI-First Web Development",
-              description: "Discover how to use Agentic workflows to create AI-powered web applications that can learn and adapt to user behavior autonomously...",
-              category: "Dev Web & Mobile",
-              type: "ARTICLE",
-              priority: "Vanguard",
-              link: "https://dev.to/t/nextjs",
-              created_at: now
-            },
-            {
-              id: "gen3",
-              title: "Modern IT Management Strategies for 2026",
-              description: "Exploring the shift towards decentralized management and automated productivity tracking in global remote-first IT teams...",
-              category: "IT Management",
-              type: "ARTICLE",
-              priority: "Priorité",
-              link: "https://dev.to/t/management",
-              created_at: now
-            }
-          ])
-      } else {
-        setArticles(response.data)
-      }
+      // Use the real AI-powered backend data
+      console.log("Articles fetched:", response.data.length, "articles")
+      setArticles(response.data)
     } catch (error) {
       console.error("Error fetching tech articles:", error)
       setArticles([])
@@ -109,6 +83,26 @@ export default function VeilleTechPage() {
     setShowSuccess(true)
   }
 
+  const handleRefresh = async () => {
+    setIsLoading(true)
+    try {
+      const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {}
+      await axios.post(`${API_BASE_URL}/api/tech/refresh`, config)
+      // Wait a moment for the background task to complete
+      setTimeout(() => {
+        fetchArticles(activeCategory)
+      }, 2000)
+      setSuccessMessage(lang === 'fr' ? "Veille Tech actualisée avec des contenus IA spécifiques au projet !" : "Tech Watch refreshed with AI project-specific content!")
+      setShowSuccess(true)
+    } catch (error) {
+      console.error("Error refreshing tech articles:", error)
+      setSuccessMessage(lang === 'fr' ? "Erreur lors de l'actualisation" : "Error during refresh")
+      setShowSuccess(true)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Notifications */}
@@ -126,10 +120,10 @@ export default function VeilleTechPage() {
           </div>
           <div>
             <h1 className="text-2xl font-black text-slate-800 tracking-tight flex items-center gap-2">
-              Veille Tech
+              {t.veilleTech.title}
             </h1>
             <p className="text-[14px] font-bold text-slate-400">
-              Détectez et intégrez les tendances IT & Gaming instantanément.
+              {lang === 'fr' ? "Détectez et intégrez les tendances IT & Gaming instantanément." : "Detect and integrate IT & Gaming trends instantly."}
             </p>
           </div>
         </div>
@@ -144,6 +138,14 @@ export default function VeilleTechPage() {
 
         {user?.role?.toUpperCase() !== 'TEAM_LEAD' && (
           <div className="self-end xl:self-center flex items-center gap-4">
+              <button
+                onClick={handleRefresh}
+                disabled={isLoading}
+                className="flex items-center gap-2 px-4 py-2 bg-[#00BCD4] text-white rounded-xl hover:bg-[#00BCD4]/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <RefreshCw size={16} className={isLoading ? "animate-spin" : ""} />
+                <span className="text-sm font-black">{lang === 'fr' ? "Actualiser IA" : "Refresh AI"}</span>
+              </button>
               <InnovationScore score={88} />
           </div>
         )}

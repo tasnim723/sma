@@ -1,20 +1,26 @@
 "use client"
 
-import React, { useEffect, useState } from "react"
+import React, { useEffect, useState, useCallback } from "react"
+import { usePathname } from "next/navigation"
 import { useAuthStore } from "@/lib/store"
 import { 
   CheckSquare, Clock, BarChart3, TrendingUp, Activity, 
   Users, Zap, Bell, CheckCircle2, AlertTriangle, 
   ListChecks, ArrowRight, Layers, Bot, Sparkles,
   Search, Filter, MoreHorizontal, LayoutDashboard, Settings, Edit3, Award, Code, Rocket, FlaskConical, Boxes, Palette,
-  Check, Trash2, Star, Lightbulb
+  Check, Trash2, Star, Lightbulb, Gamepad2, BookOpen, FolderOpen, CalendarDays, ExternalLink
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import axios from "axios"
 import Link from "next/link"
 import { motion, AnimatePresence, Variants } from "framer-motion"
 import BenchmarkingRadar from "@/components/benchmarking/BenchmarkingRadar"
 import InnovationFunnel from "@/components/innovation/InnovationFunnel"
+import ProjectHealth from "@/components/dashboard/ProjectHealth"
+import { API_BASE_URL } from "@/lib/api"
+import { useLang } from "@/lib/useLang"
+import { useThemeStore } from "@/lib/themeStore"
 
 const containerVariants: Variants = {
   hidden: { opacity: 0 },
@@ -51,16 +57,20 @@ export default function DashboardPage() {
 }
 
 function MemberDashboard({ user, token }: any) {
+   const { theme } = useThemeStore()
    const [tasks, setTasks] = useState<any[]>([])
+   const [projects, setProjects] = useState<any[]>([])
    const [loading, setLoading] = useState(true)
 
    useEffect(() => {
       async function fetchMyTasks() {
          try {
-            const res = await axios.get("http://localhost:8000/api/tasks/me/all", {
-               headers: { Authorization: `Bearer ${token}` }
-            })
-            setTasks(res.data || [])
+            const [tasksRes, projRes] = await Promise.all([
+               axios.get(`${API_BASE_URL}/api/tasks/me/all`, { headers: { Authorization: `Bearer ${token}` } }),
+               axios.get(`${API_BASE_URL}/api/projects/`, { headers: { Authorization: `Bearer ${token}` } })
+            ])
+            setTasks(tasksRes.data || [])
+            setProjects(projRes.data || [])
          } catch (err) {
             console.error("Failed to fetch personal tasks", err)
          } finally {
@@ -74,23 +84,43 @@ function MemberDashboard({ user, token }: any) {
    const doneCount = tasks.filter(t => t.status === "DONE").length;
    const efficiency = tasks.length > 0 ? Math.round((doneCount / tasks.length) * 100) : 0;
 
+   const { t } = useLang()
+
    return (
       <motion.div variants={containerVariants} initial="hidden" animate="visible" className="p-4 md:p-8 space-y-8 pb-32">
          {/* Premium Welcome Header */}
          <motion.div variants={itemVariants} className="relative group">
             <div className="absolute inset-0 bg-gradient-to-r from-[#00CCCC]/10 via-transparent to-[#FF0000]/5 rounded-[2rem] blur-xl opacity-30 group-hover:opacity-50 transition-opacity" />
-            <div className="relative overflow-hidden rounded-[2rem] bg-white/70 backdrop-blur-xl border border-white/50 p-6 shadow-xl shadow-slate-200/40">
+            <div className={`relative overflow-hidden rounded-[2rem] p-6 shadow-xl transition-all duration-500 border ${
+               theme === 'dark' ? 'bg-[#0f172a]/60 backdrop-blur-xl border-blue-500/20 shadow-blue-900/20' : 'bg-white/70 backdrop-blur-xl border-white/50 shadow-slate-200/40'
+            }`}>
                <div className="absolute top-0 right-0 w-48 h-48 bg-gradient-to-br from-[#00CCCC]/10 to-[#FF0000]/5 rounded-full blur-[60px] -mr-16 -mt-16 pointer-events-none" />
                <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-6">
                   <div className="flex-1">
                      <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
-                        <h1 className="text-3xl lg:text-4xl font-black text-slate-900 tracking-tight leading-tight mb-1">
-                           Bienvenue, <span className="text-[#00CCCC]">{user.full_name?.split(' ')[0] || "Heros"}</span>.
+                        <h1 className={`text-3xl lg:text-4xl font-black tracking-tight leading-tight mb-1 transition-colors ${
+                           theme === 'dark' ? 'text-blue-50' : 'text-slate-900'
+                        }`}>
+                           {t.dashboard.welcome}, <span className="text-[#00CCCC]">{user.full_name?.split(' ')[0] || "Heros"}</span>.
                         </h1>
-                        <p className="text-sm font-bold text-slate-400 flex items-center gap-2">
+                        <p className="text-sm font-bold text-slate-400 flex items-center gap-2 mb-4">
                            <Sparkles size={16} className="text-[#00CCCC]" /> 
-                           SMA Connecté • Session Active
+                           {t.dashboard.session}
                         </p>
+                        <div className="max-w-md">
+                           <div className="flex justify-between items-center mb-1.5">
+                              <span className="text-[10px] font-black uppercase tracking-widest text-[#00CCCC]">Progression Globale</span>
+                              <span className="text-[10px] font-black text-slate-400">{efficiency}%</span>
+                           </div>
+                           <div className="w-full h-2 bg-slate-200/20 rounded-full overflow-hidden border border-white/10 shadow-inner">
+                              <motion.div 
+                                 initial={{ width: 0 }}
+                                 animate={{ width: `${efficiency}%` }}
+                                 transition={{ duration: 2, ease: "easeOut" }}
+                                 className="h-full bg-gradient-to-r from-[#00CCCC] to-blue-500 shadow-[0_0_15px_rgba(0,204,204,0.4)]"
+                              />
+                           </div>
+                        </div>
                      </motion.div>
                   </div>
                </div>
@@ -101,12 +131,12 @@ function MemberDashboard({ user, token }: any) {
          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
             <div className="lg:col-span-8 space-y-8">
                <div className="flex items-center justify-between px-4">
-                  <h2 className="text-xl font-black text-slate-900 flex items-center gap-3">
+                  <h2 className={`text-xl font-black flex items-center gap-3 transition-colors ${theme === 'dark' ? 'text-blue-100' : 'text-slate-900'}`}>
                      <ListChecks size={24} className="text-[#00CCCC]" />
-                     Priorités du Moment
+                     {t.dashboard.priorities}
                   </h2>
                   <Link href="/tasks" className="text-sm font-black text-[#00CCCC] hover:translate-x-1 transition-transform flex items-center gap-2">
-                     Voir tout <ArrowRight size={16} />
+                     {t.dashboard.seeAll} <ArrowRight size={16} />
                   </Link>
                </div>
                
@@ -120,27 +150,59 @@ function MemberDashboard({ user, token }: any) {
                            <motion.div 
                               variants={itemVariants}
                               whileHover={{ scale: 1.015, y: -2 }}
-                              className="group flex items-center p-6 bg-white/60 backdrop-blur-xl hover:bg-white/80 rounded-[2rem] border border-white shadow-lg shadow-slate-200/50 transition-all cursor-pointer relative overflow-hidden"
+                              className={`group flex items-center p-6 rounded-[2rem] border transition-all cursor-pointer relative overflow-hidden neon-box-cyan ${
+                                 theme === 'dark' ? 'bg-[#0f172a]/60 border-blue-500/10 shadow-xl' : 'bg-white/60 backdrop-blur-xl hover:bg-white/80 border-white shadow-lg shadow-slate-200/50'
+                              }`}
                            >
                               {/* Neon Track Effect */}
                               <div className="absolute inset-0 border-2 border-transparent group-hover:border-[#00CCCC]/20 rounded-[2rem] pointer-events-none transition-all" />
                               <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-[#00CCCC] to-transparent opacity-0 group-hover:opacity-100 group-hover:animate-pulse" />
                               
-                              <div className="w-1.5 h-12 rounded-full bg-[#00CCCC] group-hover:shadow-[0_0_15px_#00CCCC] transition-all mr-6" />
-                              <div className="flex-1 min-w-0 pr-6">
-                                 <h3 className="font-black text-xl text-slate-900 mb-1 truncate group-hover:text-[#00CCCC] transition-colors">{task.title}</h3>
-                                 <div className="flex items-center gap-4 text-slate-400 font-bold text-[12px] uppercase tracking-wider">
-                                    <span className="flex items-center gap-1.5 px-3 py-1 bg-[#00CCCC]/10 text-[#00CCCC] rounded-md transition-colors hover:bg-[#00CCCC]/20">
-                                       <Clock size={14} /> {task.deadline ? new Date(task.deadline).toLocaleDateString() : 'Pas de délai'}
-                                    </span>
-                                    <Badge variant="secondary" className="bg-slate-50 text-slate-500 border-none text-[10px] px-3 py-1 font-black leading-none uppercase tracking-tighter">
-                                       {task.status?.replace('_', ' ') || 'BACKLOG'}
-                                    </Badge>
+                              <div className="w-1.5 h-16 rounded-full bg-[#00CCCC] group-hover:shadow-[0_0_15px_#00CCCC] transition-all mr-6" />
+                              <div className="flex-1 min-w-0 pr-6 py-2">
+                                  <h3 className={`font-black text-xl mb-1 truncate group-hover:text-[#00CCCC] transition-colors ${
+                                     theme === 'dark' ? 'text-blue-50' : 'text-slate-900'
+                                  }`}>{task.title}</h3>
+                                  
+                                  {task.description && (
+                                     <p className="text-[11px] font-semibold text-slate-500 line-clamp-1 mb-3">
+                                        {task.description.replace(/#+/g, '').trim()}
+                                     </p>
+                                  )}
+
+                                 <div className="flex items-center gap-3">
+                                    <div className="flex items-center gap-4 text-slate-400 font-bold text-[12px] uppercase tracking-wider">
+                                       <span className="flex items-center gap-1.5 px-3 py-1 bg-[#00CCCC]/10 text-[#00CCCC] rounded-md transition-colors hover:bg-[#00CCCC]/20">
+                                          <Clock size={14} /> {task.deadline ? new Date(task.deadline).toLocaleDateString() : 'Pas de délai'}
+                                       </span>
+                                       <Badge variant="secondary" className={`border-none text-[10px] px-3 py-1 font-black leading-none uppercase tracking-tighter transition-colors ${
+                                          theme === 'dark' ? 'bg-blue-950 text-blue-400' : 'bg-slate-50 text-slate-500'
+                                       }`}>
+                                          {task.status?.replace('_', ' ') || 'BACKLOG'}
+                                       </Badge>
+                                    </div>
+                                    
                                  </div>
                               </div>
-                              <div className="h-14 w-14 rounded-2xl bg-white/50 border border-slate-100 flex items-center justify-center group-hover:bg-[#00CCCC] group-hover:text-white transition-all shadow-inner">
-                                 <ArrowRight size={20} className="transform group-hover:translate-x-1 transition-transform" />
+
+                              <div className="flex items-center gap-4">
+                                 {/* Member Avatar */}
+                                 <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#00CCCC] to-[#3b82f6] p-[2px] shadow-lg transform group-hover:scale-110 transition-transform">
+                                    <Avatar className="h-full w-full rounded-[14px] border border-white">
+                                       {user.avatar_url && <AvatarImage src={user.avatar_url} alt={user.full_name} className="object-cover" />}
+                                       <AvatarFallback className="bg-white text-xs font-black text-slate-700">
+                                          {user.full_name?.charAt(0).toUpperCase() || 'U'}
+                                       </AvatarFallback>
+                                    </Avatar>
+                                 </div>
+
+                                 <div className={`h-14 w-14 rounded-2xl flex items-center justify-center transition-all shadow-inner ${
+                                    theme === 'dark' ? 'bg-blue-900/40 border border-blue-500/20 text-blue-400 group-hover:bg-[#00CCCC] group-hover:text-white' : 'bg-white/50 border border-slate-100 group-hover:bg-[#00CCCC] group-hover:text-white'
+                                 }`}>
+                                    <ArrowRight size={20} className="transform group-hover:translate-x-1 transition-transform" />
+                                 </div>
                               </div>
+
                            </motion.div>
                            </Link>
                         ))
@@ -148,7 +210,7 @@ function MemberDashboard({ user, token }: any) {
                         <div className="py-12 bg-white/40 border-4 border-dashed border-slate-200 rounded-[2.5rem] text-center flex flex-col items-center">
                            <Sparkles size={48} className="text-[#00CCCC]/30 mb-4 animate-pulse" />
                            <p className="text-slate-500 font-black text-xl">Tout est à jour !</p>
-                           <p className="text-slate-400 font-bold text-sm mt-1">Profitez d'un moment de calme.</p>
+                           <p className="text-slate-400 font-bold text-sm mt-1">{t.dashboard.allDoneSubtitle}</p>
                         </div>
                      )}
                   </AnimatePresence>
@@ -156,35 +218,93 @@ function MemberDashboard({ user, token }: any) {
             </div>
 
             <div className="lg:col-span-4 space-y-8">
-                {/* AI Mini Card - Light Theme */}
-                <motion.div 
-                   variants={itemVariants}
-                   whileHover={{ y: -5 }}
-                   className="relative group cursor-pointer"
-                >
-                   <div className="absolute inset-0 bg-gradient-to-br from-[#00CCCC]/20 to-[#FF0000]/10 rounded-[2rem] blur-xl opacity-40 group-hover:opacity-60 transition-opacity" />
-                   <div className="relative bg-white/70 backdrop-blur-xl rounded-[2rem] p-6 text-slate-800 overflow-hidden border border-white shadow-xl shadow-slate-200/50">
-                      <div className="absolute top-0 right-0 w-24 h-24 bg-[#00CCCC]/5 rounded-full blur-2xl -mr-12 -mt-12" />
-                      <div className="relative z-10 space-y-4">
-                         <div className="flex items-center gap-3">
-                            <div className="p-2.5 bg-white rounded-xl border border-slate-100 shadow-sm flex items-center justify-center">
-                               <Bot size={22} className="text-[#00CCCC]" />
+                {/* Projet Récent Card */}
+                {(() => {
+                   const recentProject = [...projects].sort((a, b) => {
+                      const dateA = new Date(a.updated_at || a.created_at || 0).getTime()
+                      const dateB = new Date(b.updated_at || b.created_at || 0).getTime()
+                      return dateB - dateA
+                   })[0]
+
+                   if (!recentProject) return null
+
+                   const lastUpdate = recentProject.updated_at || recentProject.created_at
+                   const formattedDate = lastUpdate
+                      ? new Date(lastUpdate).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })
+                      : 'Récemment'
+                   const members = recentProject.team_members_info || []
+                   const displayMembers = members.slice(0, 4)
+                   const extraCount = members.length - 4
+
+                   return (
+                      <Link href={`/projects/${recentProject.id}`}>
+                      <motion.div
+                         whileHover={{ y: -8, scale: 1.02, boxShadow: "0 0 50px rgba(0, 204, 204, 0.25), 0 0 100px rgba(0, 204, 204, 0.08)" }}
+                         className="neon-box-cyan light-sweep-container shrink-0 frosted-glass group cursor-pointer relative"
+                      >
+                         <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-[#00CCCC] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                         <div className="absolute -top-6 -right-6 w-24 h-24 bg-[#00CCCC]/8 rounded-full blur-[40px] group-hover:bg-[#00CCCC]/15 transition-all duration-700 pointer-events-none" />
+                         <div className="relative px-5 py-4 min-h-[140px] flex flex-col justify-between">
+                            <div className="relative z-10">
+                               <div className="flex items-center gap-2 mb-3">
+                                  <motion.div
+                                     animate={{ rotate: [0, -8, 8, 0] }}
+                                     transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                                     className="p-1.5 rounded-lg bg-[#00CCCC]/10 border border-[#00CCCC]/20"
+                                  >
+                                     <FolderOpen size={14} className="text-[#00CCCC]" />
+                                  </motion.div>
+                                  <p className="text-[10px] font-black tracking-[0.2em] text-[#00CCCC] uppercase">Projet Récent</p>
+                                  <div className="ml-auto">
+                                     <ExternalLink size={12} className="text-[#00CCCC] opacity-0 group-hover:opacity-100 transition-opacity" />
+                                  </div>
+                               </div>
+                               <h3 className={`text-[16px] font-black leading-tight truncate group-hover:text-[#00CCCC] transition-colors duration-300 ${
+                                  theme === 'dark' ? 'text-blue-50' : 'text-slate-800'
+                               }`}>{recentProject.name}</h3>
+                               <div className="flex items-center gap-1.5 mt-1.5">
+                                  <CalendarDays size={12} className="text-slate-400" />
+                                  <span className={`text-[11px] font-bold transition-colors ${theme === 'dark' ? 'text-blue-300/60' : 'text-slate-400'}`}>
+                                     Mis à jour le {formattedDate}
+                                  </span>
+                               </div>
                             </div>
-                            <div>
-                               <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#FF0000]/80">Insight Stratégique</p>
-                               <h4 className="text-xs font-black text-slate-400">Assistant I.A.</h4>
+                            <div className="relative z-10 flex items-center justify-between mt-3">
+                               <div className="flex items-center -space-x-2">
+                                  {displayMembers.map((member: any, i: number) => (
+                                     <div key={i} className={`w-8 h-8 rounded-full border-2 overflow-hidden shadow-md ${theme === 'dark' ? 'border-[#0f172a]' : 'border-white'}`}>
+                                        <Avatar className="h-full w-full">
+                                           <AvatarFallback className="bg-gradient-to-br from-[#00CCCC] to-[#3b82f6] text-[10px] font-black text-white">
+                                              {member.full_name?.charAt(0).toUpperCase() || '?'}
+                                           </AvatarFallback>
+                                        </Avatar>
+                                     </div>
+                                  ))}
+                                  {extraCount > 0 && (
+                                     <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center text-[10px] font-black shadow-md ${
+                                        theme === 'dark' ? 'bg-blue-900/80 border-[#0f172a] text-blue-300' : 'bg-slate-100 border-white text-slate-500'
+                                     }`}>+{extraCount}</div>
+                                  )}
+                               </div>
+                               <motion.div
+                                  whileHover={{ scale: 1.08 }}
+                                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-r from-[#00CCCC] to-[#0891b2] text-white text-[10px] font-black uppercase tracking-wider shadow-lg"
+                               >
+                                  <Rocket size={11} />
+                                  Accéder
+                                  <ArrowRight size={11} />
+                               </motion.div>
                             </div>
                          </div>
-                         <p className="text-[14px] font-bold leading-relaxed text-slate-700 italic">
-                            "Concentrez-vous sur '{activeTasks[0]?.title.slice(0, 20) || 'la mission actuelle'}' pour franchir le prochain palier d'XP."
-                         </p>
-                      </div>
-                   </div>
-                </motion.div>
+                         <div className="absolute bottom-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-[#00CCCC]/30 to-transparent" />
+                      </motion.div>
+                      </Link>
+                   )
+                })()}
 
-                <div className="grid grid-cols-2 gap-4">
-                   <KPICard title="Terminé" value={doneCount} icon={<CheckCircle2 />} color="text-emerald-500" bg="glow-green" />
-                   <KPICard title="XP Bonus" value={doneCount * 125} icon={<Zap />} color="text-amber-500" bg="glow-yellow" />
+                <div className="grid grid-cols-2 gap-4 mt-6">
+                   <KPICard title={t.dashboard.completedTasks} value={doneCount} icon={<CheckCircle2 />} color="text-emerald-500" bg="glow-green" />
+                   <KPICard title={(t.dashboard as any).activeTasks ?? 'Tâches actives'} value={activeTasks.length} icon={<ListChecks />} color="text-[#00CCCC]" bg="glow-cyan" />
                 </div>
              </div>
          </div>
@@ -192,400 +312,36 @@ function MemberDashboard({ user, token }: any) {
    )
 }
 
-function ManagerDashboard({ user, token }: any) {
-   const [history, setHistory] = useState<string[]>([])
-   const [insights, setInsights] = useState<any[]>([])
-   const [projects, setProjects] = useState<any[]>([])
-   const [activeProjectTasks, setActiveProjectTasks] = useState<any[]>([])
-   const [stats, setStats] = useState({
-      activeProjects: 0,
-      completedTasks: 0,
-      upcomingDeadlines: 0,
-      teamCapacity: "0%"
-   })
-   const [loading, setLoading] = useState(true)
-
-   useEffect(() => {
-      async function fetchData() {
-         try {
-            const [hubRes, projectsRes] = await Promise.all([
-               axios.get("http://localhost:8000/api/hub/history", {
-                  headers: { Authorization: `Bearer ${token}` }
-               }),
-               axios.get("http://localhost:8000/api/projects/", {
-                  headers: { Authorization: `Bearer ${token}` }
-               })
-            ])
-            setHistory(hubRes.data.history || [])
-            setInsights(hubRes.data.insights || [])
-            if (hubRes.data.stats) setStats(hubRes.data.stats)
-            const loadedProjects = projectsRes.data || [];
-            setProjects(loadedProjects)
-
-            const activeProject = loadedProjects.find((p: any) => p.status !== 'COMPLETED');
-            if (activeProject) {
-                try {
-                    const tasksRes = await axios.get(`http://localhost:8000/api/tasks/project/${activeProject.id}`, { headers: { Authorization: `Bearer ${token}` }});
-                    setActiveProjectTasks(tasksRes.data || []);
-                } catch (e) {
-                    console.error("Failed to fetch active project tasks for XP", e);
-                }
-            }
-         } catch (err) {
-            console.error("Failed to fetch dashboard data", err)
-         } finally {
-            setLoading(false)
-         }
-      }
-      if (token) fetchData()
-   }, [token])
+function Sparkline({ data, color }: { data: number[], color: string }) {
+   if (!data || data.length < 2) return null;
+   const min = Math.min(...data);
+   const max = Math.max(...data);
+   const range = max - min || 1;
+   const width = 100;
+   const height = 30;
+   
+   const points = data.map((val, i) => {
+      const x = (i / (data.length - 1)) * width;
+      const y = height - ((val - min) / range) * height;
+      return `${x},${y}`;
+   }).join(' ');
 
    return (
-      <motion.div variants={containerVariants} initial="hidden" animate="visible" className="flex flex-col h-full p-4 md:p-8 space-y-6 pb-2 min-h-0">
-         {/* Stats Row */}
-         <motion.div variants={itemVariants} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <KPICard title="TREATS DETECTED" value={stats.activeProjects + 4} icon={<FlaskConical />} color="text-amber-500" bg="glow-yellow" />
-            <KPICard title="INNOVATIONS" value={stats.completedTasks + 12} icon={<Lightbulb />} color="text-rose-500" bg="glow-red" />
-            <KPICard title="MARKET TRENDS" value={stats.upcomingDeadlines + 8} icon={<TrendingUp />} color="text-sky-500" bg="glow-blue" />
-            <KPICard title="BENCHMARK SCORE" value="84%" icon={<Award />} color="text-emerald-500" bg="glow-green" />
-         </motion.div>
-
-         {/* Innovation Funnel Section */}
-         <motion.div variants={itemVariants} className="px-2">
-            <h2 className="text-xs font-black tracking-[0.2em] text-slate-400 uppercase mb-4 flex items-center gap-2">
-               <Rocket size={14} className="text-[#00CCCC]" /> Pipeline d'Innovation
-            </h2>
-            <InnovationFunnel />
-         </motion.div>
-
-         <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 items-stretch flex-1 min-h-0">
-            {/* Main Content Area */}
-            <div className="xl:col-span-8 flex flex-col">
-               {/* Live Feed with Timeline UI */}
-               <div className="flex flex-col gap-4 flex-1 min-h-0">
-                  <div className="flex items-center justify-between px-4 text-center sm:text-left">
-                     <h2 className="text-xl font-bold tracking-wide text-slate-800 flex items-center gap-3">
-                        Activité Pulsée
-                     </h2>
-                  </div>
-                  
-                  <div className="relative rounded-[2rem] p-6 backdrop-blur-3xl border border-sky-100 bg-white/70 shadow-[0_10px_40px_rgba(0,0,0,0.03)] flex flex-col flex-1 min-h-0">
-                     <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-sky-400/5 to-transparent rounded-full blur-3xl opacity-50 pointer-events-none" />
-                     <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-6 relative z-10 p-2">
-                        <AnimatePresence>
-                           {loading ? (
-                              [1, 2, 3].map(i => <div key={i} className="h-16 bg-slate-50 animate-pulse rounded-2xl" />)
-                           ) : history.length > 0 ? (
-                              history.map((line, idx) => {
-                                 const getActivityStyle = (msg: string) => {
-                                    const lower = msg.toLowerCase();
-                                    if (lower.includes('added') || lower.includes('créé') || lower.includes('création') || lower.includes('terminé') || lower.includes('completed')) {
-                                       return { 
-                                          color: 'bg-emerald-500', 
-                                          border: 'border-emerald-200',
-                                          icon: <Check size={14} strokeWidth={4} className="text-white" />,
-                                          badge: 'AJOUT'
-                                       };
-                                    }
-                                    if (lower.includes('delete') || lower.includes('supprimé') || lower.includes('removal')) {
-                                       return { 
-                                          color: 'bg-rose-500', 
-                                          border: 'border-rose-200',
-                                          icon: <Trash2 size={14} strokeWidth={2.5} className="text-white" />,
-                                          badge: 'SUPPRESSION'
-                                       };
-                                    }
-                                    if (lower.includes('alerte') || lower.includes('deadline') || lower.includes('urgent') || lower.includes('attention')) {
-                                       return { 
-                                          color: 'bg-rose-400', 
-                                          border: 'border-rose-100',
-                                          icon: <AlertTriangle size={14} strokeWidth={2.5} className="text-white" />,
-                                          badge: 'ALERTE'
-                                       };
-                                    }
-                                    if (lower.includes('innovation') || lower.includes('insight') || lower.includes('ia') || lower.includes('veille')) {
-                                       return { 
-                                          color: 'bg-amber-400', 
-                                          border: 'border-amber-200',
-                                          icon: <Star size={14} fill="white" className="text-white" />,
-                                          badge: 'INNOVATION'
-                                       };
-                                    }
-                                    return { 
-                                       color: 'bg-[#00BCD4]', 
-                                       border: 'border-[#00BCD4]/30',
-                                       icon: <Zap size={14} strokeWidth={2.5} className="text-white" />,
-                                       badge: 'SIGNAL'
-                                    };
-                                 };
-
-                                 const style = getActivityStyle(line);
-
-                                 return (
-                                 <motion.div 
-                                    initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: idx * 0.05 }}
-                                    key={idx} 
-                                    className="flex gap-6 group relative"
-                                 >
-                                    <div className="flex flex-col items-center">
-                                       <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 ${style.border} ${style.color} shadow-lg z-10 transform group-hover:scale-110 transition-transform`}>
-                                          {style.icon}
-                                       </div>
-                                       <div className="w-[1.5px] flex-1 bg-gradient-to-b from-slate-200 to-transparent my-2" />
-                                    </div>
-                                    <div className="flex-1 pb-8">
-                                       <div className="flex items-center gap-3 mb-2">
-                                          <span className={`text-[10px] font-black uppercase tracking-[0.2em] leading-none ${style.color.replace('bg-', 'text-')}`}>
-                                             {style.badge}
-                                          </span>
-                                          <div className="h-[1px] flex-1 bg-slate-100" />
-                                       </div>
-                                       <p className="text-[15px] font-bold text-slate-700 group-hover:text-slate-900 transition-colors leading-relaxed">
-                                          {line}
-                                       </p>
-                                    </div>
-                                 </motion.div>
-                                 );
-                              })
-                           ) : (
-                              <div className="text-center py-20 opacity-50"><p className="font-black text-slate-300">CALME GÉNÉRAL</p></div>
-                           )}
-                        </AnimatePresence>
-                     </div>
-                  </div>
-               </div>
-            </div>
-
-            {/* Right Aside Info */}
-            <div className="xl:col-span-4 flex flex-col gap-6">
-               <motion.div 
-                  whileHover={{ y: -2 }}
-                  className="relative group cursor-pointer shrink-0"
-               >
-                     <div className="relative nexus-glass rounded-[2rem] px-6 py-6 text-slate-800 overflow-hidden bg-white/40 backdrop-blur-2xl border border-white/50">
-                        <div className="flex justify-between items-center mb-4">
-                           <h3 className="font-black tracking-widest text-[12px] text-slate-700 uppercase">Benchmarking Radar</h3>
-                           <Badge className="bg-[#00CCCC] text-white border-none text-[10px]">ALPHA v2</Badge>
-                        </div>
-                        <BenchmarkingRadar data={[
-                           { subject: 'Perf', A: 8, B: 6, fullMark: 10 },
-                           { subject: 'Innov', A: 9, B: 5, fullMark: 10 },
-                           { subject: 'UX', A: 7, B: 8, fullMark: 10 },
-                           { subject: 'Coût', A: 6, B: 7, fullMark: 10 },
-                           { subject: 'Délai', A: 8, B: 4, fullMark: 10 }
-                        ]} />
-                        <div className="mt-4 flex items-center justify-between text-[10px] font-black uppercase text-slate-400">
-                           <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-[#00CCCC]" /> Notre Projet</div>
-                           <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-[#FF0000]/40" /> Industrie</div>
-                        </div>
-                     </div>
-               </motion.div>
-
-               <motion.div 
-                  whileHover={{ y: -2 }}
-                  className="relative group cursor-pointer shrink-0"
-               >
-                     <div className="relative nexus-glass rounded-[2rem] px-5 py-4 text-slate-800 overflow-hidden min-h-[130px] flex flex-col justify-center bg-white/40 backdrop-blur-2xl border border-white/50">
-                        <div className="absolute top-0 right-0 w-32 h-32 bg-[#00BCD4]/5 rounded-full blur-3xl -mr-16 -mt-16" />
-                        
-                        <div className="relative z-10 w-[70%]">
-                           <p className="text-[10px] font-black tracking-widest text-slate-400 uppercase mb-2">Analyse de l'Innovation</p>
-                           <div className="relative">
-                              <span className="absolute -left-2 top-0 text-2xl text-[#00BCD4]/20 font-serif">"</span>
-                              <p className="text-[13px] font-bold text-slate-700 leading-snug pl-4 pr-2 italic">
-                                 {insights[0]?.description || "L'équilibre des équipes est optimal. Maintenez le rythme sur les objectifs prioritaires."}
-                              </p>
-                           </div>
-                        </div>
-
-                        {/* Moving robot icon to middle-right as requested */}
-                        <div className="absolute -right-4 top-1/2 -translate-y-1/2 w-28 h-28 flex items-center justify-center opacity-90 group-hover:opacity-100 transition-all duration-300">
-                           <div className="relative">
-                              <Bot size={75} className="text-[#00BCD4] drop-shadow-[0_0_15px_rgba(0,188,212,0.4)] transform group-hover:rotate-12 transition-transform" />
-                              <div className="absolute inset-0 bg-[#00BCD4]/5 blur-2xl -z-10 rounded-full" />
-                           </div>
-                        </div>
-                     </div>
-               </motion.div>
-
-               {/* MILESTONE PROJECT LIST */}
-               {(() => {
-                  const activeProject = projects.find(p => p.status !== 'COMPLETED');
-                  if (!activeProject) return null;
-                  
-                  // Calculate dynamic XP
-                  let earnedXP = 0;
-                  let totalXP = 0;
-                  activeProjectTasks.forEach(task => {
-                     const xpInfo = task.priority === 'URGENT' ? 500 : task.priority === 'HIGH' ? 300 : task.priority === 'MEDIUM' ? 150 : 50;
-                     totalXP += xpInfo;
-                     if (task.status === 'DONE') earnedXP += xpInfo;
-                  });
-                  if (totalXP === 0) totalXP = 1000; // prevent divide by zero, show empty bar
-                  const xpPercent = Math.min(100, Math.max(0, Math.round((earnedXP / totalXP) * 100)));
-                  const displayProgress = activeProjectTasks.length > 0 ? xpPercent : 0;
-
-                  
-                  // Use real milestones if available, otherwise fallback to default empty state
-                  const projectMilestones = activeProject.milestones && activeProject.milestones.length > 0 
-                     ? activeProject.milestones 
-                     : [
-                        { title: "Planification", completed: true },
-                        { title: "Développement", completed: displayProgress > 30 },
-                        { title: "Tests", completed: displayProgress > 70 },
-                        { title: "Livraison", completed: displayProgress >= 100 }
-                       ];
-                       
-                  const getMilestoneStyles = (title: string, isCompleted: boolean) => {
-                     const lowerTitle = title.toLowerCase();
-                     
-                     // 1. Definition / Plan -> ALWAYS BLUE
-                     if (lowerTitle.includes('plan') || lowerTitle.includes('défini')) {
-                        return { 
-                           icon: <LayoutDashboard size={20} />, 
-                           bg: isCompleted ? 'bg-blue-100 border-blue-300' : 'bg-blue-50/50 border-blue-100', 
-                           text: 'text-blue-500', 
-                           glow: isCompleted ? 'shadow-[0_0_15px_rgba(59,130,246,0.3)]' : '',
-                           dot: isCompleted ? 'bg-blue-400 shadow-[0_0_8px_rgba(59,130,246,0.6)]' : 'bg-blue-200',
-                           label: isCompleted ? 'text-blue-600 font-black' : 'text-blue-400 font-bold'
-                        };
-                     }
-                     // 2. Conception / UI -> ALWAYS ROSE
-                     if (lowerTitle.includes('dev') || lowerTitle.includes('concep') || lowerTitle.includes('ui') || lowerTitle.includes('design')) {
-                        return { 
-                           icon: <Palette size={20} />, 
-                           bg: isCompleted ? 'bg-rose-100 border-rose-300' : 'bg-rose-50/50 border-rose-100', 
-                           text: 'text-rose-500', 
-                           glow: isCompleted ? 'shadow-[0_0_15px_rgba(244,63,94,0.3)]' : '',
-                           dot: isCompleted ? 'bg-rose-400 shadow-[0_0_8px_rgba(244,63,94,0.6)]' : 'bg-rose-200',
-                           label: isCompleted ? 'text-rose-600 font-black' : 'text-rose-400 font-bold'
-                        };
-                     }
-                     // 3. Development / Code -> ALWAYS INDIGO
-                     if (lowerTitle.includes('code') || lowerTitle.includes('eng') || lowerTitle.includes('prog')) {
-                        return { 
-                           icon: <Code size={20} />, 
-                           bg: isCompleted ? 'bg-indigo-100 border-indigo-300' : 'bg-indigo-50/50 border-indigo-100', 
-                           text: 'text-indigo-500', 
-                           glow: isCompleted ? 'shadow-[0_0_15px_rgba(99,102,241,0.3)]' : '',
-                           dot: isCompleted ? 'bg-indigo-400 shadow-[0_0_8px_rgba(99,102,241,0.6)]' : 'bg-indigo-200',
-                           label: isCompleted ? 'text-indigo-600 font-black' : 'text-indigo-400 font-bold'
-                        };
-                     }
-                     // 4. Test / QA -> ALWAYS EMERALD
-                     if (lowerTitle.includes('test') || lowerTitle.includes('qa')) {
-                        return { 
-                           icon: <FlaskConical size={20} />, 
-                           bg: isCompleted ? 'bg-emerald-100 border-emerald-300' : 'bg-emerald-50/50 border-emerald-100', 
-                           text: 'text-emerald-500', 
-                           glow: isCompleted ? 'shadow-[0_0_15px_rgba(16,185,129,0.3)]' : '',
-                           dot: isCompleted ? 'bg-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.6)]' : 'bg-emerald-200',
-                           label: isCompleted ? 'text-emerald-600 font-black' : 'text-emerald-500 font-bold'
-                        };
-                     }
-                     // Default / Final -> ALWAYS CYAN
-                     return { 
-                        icon: <Boxes size={20} />, 
-                        bg: isCompleted ? 'bg-cyan-100 border-cyan-300' : 'bg-cyan-50/50 border-cyan-100', 
-                        text: 'text-cyan-500', 
-                        glow: isCompleted ? 'shadow-[0_0_15px_rgba(6,182,212,0.3)]' : '',
-                        dot: isCompleted ? 'bg-cyan-400 shadow-[0_0_8px_rgba(6,182,212,0.6)]' : 'bg-cyan-200',
-                        label: isCompleted ? 'text-cyan-600 font-black' : 'text-cyan-400 font-bold'
-                     };
-                  };
-
-                  return (
-                     <Link href={`/projects/${activeProject.id || activeProject._id}`} className="flex-1 flex flex-col nexus-glass rounded-[2rem] p-6 text-slate-800 relative bg-white/40 backdrop-blur-2xl border border-white/50 block group hover:bg-white/60 hover:shadow-2xl transition-all cursor-pointer">
-                        {/* OVERALL PROGRESS */}
-                        <div className="flex justify-between items-center mb-2">
-                           <p className="font-bold text-slate-700 w-3/4 truncate">{activeProject.name}</p>
-                           <p className="font-black text-[#00BCD4] uppercase tracking-widest text-[11px] shrink-0">Progression {activeProject.progress_percentage}%</p>
-                        </div>
-                        <div className="w-full h-2 bg-slate-200/50 rounded-full overflow-hidden mb-8 shadow-inner">
-                           <motion.div 
-                              initial={{ width: 0 }}
-                              animate={{ width: `${activeProject.progress_percentage}%` }}
-                              transition={{ duration: 1.5, ease: "easeOut" }}
-                              className="h-full bg-[#00BCD4] rounded-full shadow-[0_0_10px_rgba(0,188,212,0.5)]" 
-                           />
-                        </div>
-
-                        {/* MILESTONES HEADER */}
-                        <div className="mb-6">
-                           <h3 className="font-black tracking-widest text-[14px] text-slate-700 uppercase">MILESTONES</h3>
-                        </div>
-
-                        {/* HEXAGON STEPPER */}
-                        <div className="flex justify-between items-center relative mb-8 px-2">
-                           {/* connecting line */}
-                           <div className="absolute left-[30px] right-[30px] h-1 bg-slate-200 -z-10 translate-y-[-10px]" />
-                           <motion.div 
-                              initial={{ right: '100%' }}
-                              animate={{ right: `${100 - activeProject.progress_percentage}%` }}
-                              transition={{ duration: 1.5, ease: "easeOut" }}
-                              className="absolute left-[30px] h-1 bg-[#00BCD4] -z-10 translate-y-[-10px]" 
-                           />
-
-                           {projectMilestones.slice(0, 4).map((milestone: any, index: number) => {
-                              const isCompleted = milestone.completed !== undefined ? milestone.completed : (index < (activeProject.progress_percentage / 25));
-                              const isLast = index === Math.min(3, projectMilestones.length - 1);
-                              
-                              if (isLast) {
-                                 // Render the gold hexagon for the last milestone
-                                 return (
-                                    <React.Fragment key={index}>
-                                       {index > 0 && <span className="text-slate-200 text-[10px] tracking-[0.2em] font-black self-start mt-6">{'>>'}</span>}
-                                       <div className="flex flex-col items-center gap-3 w-16">
-                                          <div className={`w-[60px] h-[60px] rounded-2xl rotate-45 flex items-center justify-center border-2 relative z-10 mb-2 transition-all duration-500 shadow-sm
-                                             ${isCompleted ? 'bg-[#fffbf0] border-amber-300 shadow-[0_0_15px_rgba(251,191,36,0.3)]' : 'bg-slate-50 border-slate-200 opacity-50'}`}>
-                                             <div className="-rotate-45">
-                                                <Award size={26} className={isCompleted ? 'text-amber-500 fill-amber-400 drop-shadow-sm' : 'text-slate-300'} />
-                                             </div>
-                                          </div>
-                                          <div className={`w-2.5 h-2.5 rounded-full z-10 ${isCompleted ? 'bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.8)]' : 'bg-slate-300'}`} />
-                                          <span className={`text-[12px] font-bold truncate w-[80px] text-center ${isCompleted ? 'text-amber-500' : 'text-slate-400'}`}>{milestone.title}</span>
-                                       </div>
-                                    </React.Fragment>
-                                 );
-                              }
-
-                                 const styles = getMilestoneStyles(milestone.title, isCompleted as boolean);
-                                 return (
-                                 <React.Fragment key={index}>
-                                    {index > 0 && <span className="text-slate-200 text-[10px] tracking-[0.2em] font-black self-start mt-6 group-hover:text-slate-300 transition-colors">{'>>'}</span>}
-                                    <div className="flex flex-col items-center gap-3 w-16 text-center">
-                                       <div className={`w-[52px] h-[52px] rounded-[14px] rotate-45 flex items-center justify-center border-2 relative z-10 mb-2 transition-all duration-500 
-                                          ${styles.bg} ${styles.glow} group-hover:scale-110`}>
-                                          <div className="-rotate-45">
-                                             {React.cloneElement(styles.icon as React.ReactElement, { className: styles.text, size: 22 })}
-                                          </div>
-                                       </div>
-                                       <div className={`w-2.5 h-2.5 rounded-full z-10 transition-all duration-500 ${styles.dot}`} />
-                                       <span className={`text-[10px] font-black truncate w-[80px] uppercase tracking-tighter ${styles.label}`} title={milestone.title}>{milestone.title}</span>
-                                    </div>
-                                 </React.Fragment>
-                                 );
-                           })}
-                        </div>
-                        
-                        {/* XP BAR at very bottom */}
-                        <div className="flex justify-between items-center mb-1">
-                           <p className="font-bold text-slate-600 text-[11px] tracking-widest font-black uppercase">XP</p>
-                           <p className="font-bold text-slate-600 justify-self-end text-[11px] tracking-widest text-right w-full">{earnedXP}/{totalXP}</p>
-                        </div>
-                        <div className="w-full h-1.5 bg-slate-200/50 rounded-full overflow-hidden shadow-inner flex items-center mb-2">
-                           <div className="h-1 bg-[#00BCD4] rounded-full shadow-[0_0_5px_rgba(0,188,212,0.5)] transition-all duration-1000" style={{ width: `${xpPercent}%` }} />
-                        </div>
-                     </Link>
-                  );
-               })() }
-            </div>
-         </div>
-      </motion.div>
-   )
+      <svg viewBox={`0 0 ${width} ${height}`} className="w-16 h-8 opacity-60">
+         <motion.polyline
+            initial={{ pathLength: 0, opacity: 0 }}
+            animate={{ pathLength: 1, opacity: 1 }}
+            transition={{ duration: 1.5, ease: "easeInOut" }}
+            points={points}
+            className={`sparkline-path ${color}`}
+            style={{ stroke: 'currentColor' }}
+         />
+      </svg>
+   );
 }
 
-function KPICard({ title, value, icon, bg, color }: any) {
+function KPICard({ title, value, icon, bg, color, sparkData }: any) {
+   const { theme } = useThemeStore()
    const [displayValue, setDisplayValue] = useState(0);
    
    useEffect(() => {
@@ -612,23 +368,408 @@ function KPICard({ title, value, icon, bg, color }: any) {
    return (
       <motion.div 
          whileHover={{ y: -5, scale: 1.02 }}
-         className={`rounded-[2rem] p-5 transition-all duration-300 relative group flex gap-3 items-center bg-white/40 backdrop-blur-2xl border border-white/50 shadow-sm ${bg}`}
+         className={`rounded-[2rem] p-5 transition-all duration-300 relative group flex gap-3 items-center frosted-glass border border-white/20 shadow-xl ${bg}`}
       >
-         <div className={`p-4 rounded-xl bg-white/30 shrink-0 ${color} group-hover:scale-110 transition-transform`}>
+         <div className={`p-4 rounded-xl bg-white/10 shrink-0 ${color} group-hover:scale-110 transition-transform border border-white/10`}>
             {React.cloneElement(icon, { size: 22, strokeWidth: 2 })}
          </div>
-         <div className="flex flex-col justify-center">
-            <h3 className="text-3xl font-black text-slate-800 leading-none tracking-tighter mb-1">
+         <div className="flex-1 flex flex-col justify-center">
+            <h3 className={`text-3xl font-black leading-none tracking-tighter mb-1 transition-colors ${theme === 'dark' ? 'text-blue-50' : 'text-slate-800'}`}>
                {typeof value === 'string' && value.includes('%') ? `${displayValue}%` : displayValue}
             </h3>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-700">
+            <p className={`text-[10px] font-bold uppercase tracking-widest transition-colors ${theme === 'dark' ? 'text-blue-400' : 'text-slate-500'}`}>
                {title}
             </p>
          </div>
-         {/* Decorative Corner */}
+         
+         <div className="hidden sm:block">
+            <Sparkline data={sparkData} color={color} />
+         </div>
+
          <div className="absolute top-0 right-0 w-8 h-8 pointer-events-none">
             <div className={`absolute top-2 right-2 w-1.5 h-1.5 rounded-full ${color.replace('text-', 'bg-')} opacity-20 group-hover:opacity-100 transition-opacity`} />
          </div>
       </motion.div>
    )
 }
+
+function ManagerDashboard({ user, token }: any) {
+   const pathname = usePathname()
+   const [history, setHistory] = useState<string[]>([])
+   const [insights, setInsights] = useState<any[]>([])
+   const [projects, setProjects] = useState<any[]>([])
+   const [activeProjectTasks, setActiveProjectTasks] = useState<any[]>([])
+   const [stats, setStats] = useState<any>({
+      activeProjects: 0,
+      completedTasks: 0,
+      upcomingDeadlines: 0,
+      teamCapacity: "0%",
+      sparklines: {}
+   })
+   const [loading, setLoading] = useState(true)
+
+   const fetchData = useCallback(async () => {
+      try {
+         const [hubRes, projectsRes] = await Promise.all([
+            axios.get(`${API_BASE_URL}/api/hub/history`, {
+               headers: { Authorization: `Bearer ${token}` }
+            }),
+            axios.get(`${API_BASE_URL}/api/projects/`, {
+               headers: { Authorization: `Bearer ${token}` }
+            })
+         ])
+         setHistory(hubRes.data.history || [])
+         setInsights(hubRes.data.insights || [])
+         if (hubRes.data.stats) setStats(hubRes.data.stats)
+         const loadedProjects = projectsRes.data || [];
+         setProjects(loadedProjects)
+
+         const activeProject = loadedProjects.find((p: any) => p.status !== 'COMPLETED');
+         if (activeProject) {
+             try {
+                 const tasksRes = await axios.get(`${API_BASE_URL}/api/tasks/project/${activeProject.id}`, { headers: { Authorization: `Bearer ${token}` }});
+                 setActiveProjectTasks(tasksRes.data || []);
+             } catch (e) {
+                 // Non-critical: XP data unavailable
+             }
+         }
+      } catch (err) {
+         if (axios.isAxiosError(err)) {
+            if (err.response?.status === 401 || !err.response) {
+               window.location.href = "/login";
+               return;
+            }
+            console.error("Dashboard API error:", err.response?.status, err.response?.data)
+         } else {
+            console.error("Dashboard unexpected error:", err)
+         }
+      } finally {
+         setLoading(false)
+      }
+   }, [token])
+
+   // Fetch on mount and every time user navigates back to dashboard
+   useEffect(() => {
+      if (token) fetchData()
+   }, [token, pathname, fetchData])
+
+   const { t } = useLang()
+   const { theme } = useThemeStore()
+
+   const handleActionInsight = (query: string) => {
+      window.dispatchEvent(new CustomEvent('trigger-ai-chat', { detail: { query } }));
+   };
+
+   return (
+      <motion.div variants={containerVariants} initial="hidden" animate="visible" className="flex flex-col h-full p-4 md:p-8 space-y-6 pb-2 min-h-0">
+         <motion.div variants={itemVariants} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <KPICard title={t.dashboard.treats} value={stats.activeProjects} sparkData={stats.sparklines?.activeProjects} icon={<FlaskConical />} color="text-amber-500" bg="glow-yellow" />
+            <KPICard title={t.dashboard.innovations} value={stats.completedTasks} sparkData={stats.sparklines?.completedTasks} icon={<Lightbulb />} color="text-rose-500" bg="glow-red" />
+            <KPICard title={t.dashboard.trends} value={stats.upcomingDeadlines} sparkData={stats.sparklines?.upcomingDeadlines} icon={<TrendingUp />} color="text-sky-500" bg="glow-blue" />
+         </motion.div>
+
+
+         <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 items-stretch flex-1 min-h-0">
+            <div className="xl:col-span-8 flex flex-col">
+               <div className="flex flex-col gap-4 flex-1 min-h-0">
+                  <div className="flex items-center justify-between px-4 text-center sm:text-left">
+                     <h2 className={`text-xl font-bold tracking-wide flex items-center gap-3 transition-colors ${theme === 'dark' ? 'text-blue-100' : 'text-slate-800'}`}>
+                        {t.dashboard.activityFeed}
+                     </h2>
+                  </div>
+                  
+                  <motion.div 
+                     whileHover={{ y: -8, scale: 1.01, boxShadow: "0 0 40px rgba(0, 188, 212, 0.2)" }}
+                     className="neon-box-cyan light-sweep-container flex-1 flex flex-col min-h-0 frosted-glass"
+                  >
+                     <div className="relative flex-1 p-6 flex flex-col min-h-0">
+                        <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-6 relative z-10 p-2">
+                        <AnimatePresence>
+                           {loading ? (
+                              [1, 2, 3].map(i => <div key={i} className="h-16 bg-slate-50/10 animate-pulse rounded-2xl" />)
+                           ) : history.length > 0 ? (
+                              history.slice(0, 5).map((line, idx) => {
+                                 const getActivityStyle = (msg: string) => {
+                                    const lower = msg.toLowerCase();
+                                    if (lower.includes('archived') || lower.includes('archivé') || lower.includes('_archived')) {
+                                       return { 
+                                          color: 'bg-amber-500', 
+                                          border: 'border-amber-200',
+                                          icon: <Star size={14} strokeWidth={2.5} className="text-white" />,
+                                          badge: 'ARCHIVE',
+                                          hoverHex: '#f59e0b'
+                                       };
+                                    }
+                                    if (lower.includes('unarchived') || lower.includes('désarchivé') || lower.includes('_unarchived')) {
+                                       return { 
+                                          color: 'bg-sky-500', 
+                                          border: 'border-sky-200',
+                                          icon: <ArrowRight size={14} strokeWidth={2.5} className="text-white" />,
+                                          badge: 'DÉSARCHIVÉ',
+                                          hoverHex: '#0ea5e9'
+                                       };
+                                    }
+                                    if (lower.includes('added') || lower.includes('créé') || lower.includes('création') || lower.includes('completed')) {
+                                       return { 
+                                          color: 'bg-emerald-500', 
+                                          border: 'border-emerald-200',
+                                          icon: <Check size={14} strokeWidth={4} className="text-white" />,
+                                          badge: 'AJOUT',
+                                          hoverHex: '#10b981'
+                                       };
+                                    }
+                                    if (lower.includes('delete') || lower.includes('supprimé') || lower.includes('removal')) {
+                                       return { 
+                                          color: 'bg-rose-500', 
+                                          border: 'border-rose-200',
+                                          icon: <Trash2 size={14} strokeWidth={2.5} className="text-white" />,
+                                          badge: 'SUPPRESSION',
+                                          hoverHex: '#f43f5e'
+                                       };
+                                    }
+                                    if (lower.includes('alerte') || lower.includes('deadline') || lower.includes('urgent') || lower.includes('attention')) {
+                                       return { 
+                                          color: 'bg-rose-400', 
+                                          border: 'border-rose-100',
+                                          icon: <AlertTriangle size={14} strokeWidth={2.5} className="text-white" />,
+                                          badge: 'ALERTE',
+                                          hoverHex: '#fb7185'
+                                       };
+                                    }
+                                    if (lower.includes('tech') || lower.includes('stack') || lower.includes('architecture') || lower.includes('bim')) {
+                                       return { 
+                                          color: 'bg-cyan-500', 
+                                          border: 'border-cyan-200',
+                                          icon: <Boxes size={14} strokeWidth={2.5} className="text-white" />,
+                                          badge: 'ARCHITECTURE / BIM',
+                                          hoverHex: '#06b6d4'
+                                       };
+                                    }
+                                    if (lower.includes('art') || lower.includes('3d') || lower.includes('vfx') || lower.includes('animation')) {
+                                       return { 
+                                          color: 'bg-purple-500', 
+                                          border: 'border-purple-200',
+                                          icon: <Palette size={14} strokeWidth={2.5} className="text-white" />,
+                                          badge: 'ARTS NUMÉRIQUES',
+                                          hoverHex: '#a855f7'
+                                       };
+                                    }
+                                    if (lower.includes('edu') || lower.includes('formation') || lower.includes('cours') || lower.includes('lms')) {
+                                       return { 
+                                          color: 'bg-amber-500', 
+                                          border: 'border-amber-200',
+                                          icon: <BookOpen size={14} strokeWidth={2.5} className="text-white" />,
+                                          badge: 'FORMATION / EDTECH',
+                                          hoverHex: '#f59e0b'
+                                       };
+                                    }
+                                    if (lower.includes('dev') || lower.includes('game') || lower.includes('code')) {
+                                       return { 
+                                          color: 'bg-rose-500', 
+                                          border: 'border-rose-200',
+                                          icon: <Gamepad2 size={14} strokeWidth={2.5} className="text-white" />,
+                                          badge: 'GAME DEV',
+                                          hoverHex: '#f43f5e'
+                                       };
+                                    }
+                                    return { 
+                                       color: 'bg-[#00BCD4]', 
+                                       border: 'border-[#00BCD4]/30',
+                                       icon: <Zap size={14} strokeWidth={2.5} className="text-white" />,
+                                       badge: 'SIGNAL',
+                                       hoverHex: '#00BCD4'
+                                    };
+                                 };
+
+                                 const style = getActivityStyle(line);
+
+                                 return (
+                                 <motion.div 
+                                    initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: idx * 0.05 }}
+                                    whileHover="hover"
+                                    key={idx} 
+                                    className="flex gap-6 group relative"
+                                 >
+                                    <div className="flex flex-col items-center">
+                                       <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 ${style.border} ${style.color} shadow-lg z-10 transform group-hover:scale-110 transition-transform`}>
+                                          {style.icon}
+                                       </div>
+                                       <div className="w-[1.5px] flex-1 bg-gradient-to-b from-slate-200/20 to-transparent my-2" />
+                                    </div>
+                                    <div className="flex-1 pb-8 relative">
+                                       <div className="flex items-center gap-3 mb-2">
+                                          <span className={`text-[10px] font-black uppercase tracking-[0.2em] leading-none ${style.color.replace('bg-', 'text-')}`}>
+                                             {style.badge}
+                                          </span>
+                                          <div className="h-[1px] flex-1 bg-slate-100/10" />
+                                       </div>
+                                       <motion.p 
+                                          variants={{ hover: { color: style.hoverHex } }}
+                                          className={`text-[15px] font-bold leading-relaxed transition-colors ${theme === 'dark' ? 'text-blue-100' : 'text-slate-700'}`}
+                                       >
+                                          {line}
+                                       </motion.p>
+                                       <div className={`absolute bottom-4 left-0 right-0 h-[1px] transition-colors ${theme === 'dark' ? 'bg-blue-900/50' : 'bg-slate-400/50'}`} />
+                                    </div>
+                                 </motion.div>
+                                 );
+                              })
+                           ) : (
+                              <div className="text-center py-20 opacity-50"><p className="font-black text-slate-300">CALME GÉNÉRAL</p></div>
+                           )}
+                        </AnimatePresence>
+                        </div>
+                     </div>
+                  </motion.div>
+               </div>
+            </div>
+
+            <div className="xl:col-span-4 flex flex-col gap-6">
+                {/* Recent Project Card */}
+                {(() => {
+                   // Find the most recently created/updated project
+                   const recentProject = [...projects].sort((a, b) => {
+                      const dateA = new Date(a.updated_at || a.created_at || 0).getTime();
+                      const dateB = new Date(b.updated_at || b.created_at || 0).getTime();
+                      return dateB - dateA;
+                   })[0];
+
+                   if (!recentProject) return null;
+
+                   const lastUpdate = recentProject.updated_at || recentProject.created_at;
+                   const formattedDate = lastUpdate
+                      ? new Date(lastUpdate).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })
+                      : 'Récemment';
+                   const members = recentProject.team_members_info || [];
+                   const displayMembers = members.slice(0, 4);
+                   const extraCount = members.length - 4;
+
+                   return (
+                      <Link href={`/projects/${recentProject.id}`}>
+                      <motion.div 
+                         whileHover={{ y: -8, scale: 1.02, boxShadow: "0 0 50px rgba(0, 204, 204, 0.25), 0 0 100px rgba(0, 204, 204, 0.08)" }}
+                         className="neon-box-cyan light-sweep-container shrink-0 frosted-glass group cursor-pointer relative"
+                      >
+                         {/* Top neon sweep line */}
+                         <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-[#00CCCC] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                         {/* Glow orb */}
+                         <div className="absolute -top-6 -right-6 w-24 h-24 bg-[#00CCCC]/8 rounded-full blur-[40px] group-hover:bg-[#00CCCC]/15 transition-all duration-700 pointer-events-none" />
+
+                         <div className="relative px-5 py-4 min-h-[140px] flex flex-col justify-between">
+                            {/* Header */}
+                            <div className="relative z-10">
+                               <div className="flex items-center gap-2 mb-3">
+                                  <motion.div
+                                     animate={{ rotate: [0, -8, 8, 0] }}
+                                     transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                                     className="p-1.5 rounded-lg bg-[#00CCCC]/10 border border-[#00CCCC]/20"
+                                  >
+                                     <FolderOpen size={14} className="text-[#00CCCC]" />
+                                  </motion.div>
+                                  <p className="text-[10px] font-black tracking-[0.2em] text-[#00CCCC] uppercase">Projet Récent</p>
+                                  <div className="ml-auto">
+                                     <motion.div
+                                        animate={{ x: [0, 4, 0] }}
+                                        transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                                        className="p-1 rounded-full bg-[#00CCCC]/10 border border-[#00CCCC]/20 opacity-0 group-hover:opacity-100 transition-opacity"
+                                     >
+                                        <ExternalLink size={12} className="text-[#00CCCC]" />
+                                     </motion.div>
+                                  </div>
+                               </div>
+
+                               {/* Project name */}
+                               <h3 className={`text-[16px] font-black leading-tight truncate group-hover:text-[#00CCCC] transition-colors duration-300 ${
+                                  theme === 'dark' ? 'text-blue-50' : 'text-slate-800'
+                               }`}>
+                                  {recentProject.name}
+                               </h3>
+
+                               {/* Last update */}
+                               <div className="flex items-center gap-1.5 mt-1.5">
+                                  <CalendarDays size={12} className="text-slate-400" />
+                                  <span className={`text-[11px] font-bold transition-colors ${theme === 'dark' ? 'text-blue-300/60' : 'text-slate-400'}`}>
+                                     Mis à jour le {formattedDate}
+                                  </span>
+                               </div>
+                            </div>
+
+                            {/* Bottom row: avatars + button */}
+                            <div className="relative z-10 flex items-center justify-between mt-3">
+                               {/* Member avatars */}
+                               <div className="flex items-center -space-x-2">
+                                  {displayMembers.map((member: any, i: number) => (
+                                     <motion.div
+                                        key={member.id || i}
+                                        initial={{ opacity: 0, scale: 0, x: -10 }}
+                                        animate={{ opacity: 1, scale: 1, x: 0 }}
+                                        transition={{ delay: 0.1 + i * 0.08, type: "spring", stiffness: 200 }}
+                                        className="relative group/avatar"
+                                     >
+                                        <div className={`w-8 h-8 rounded-full border-2 overflow-hidden shadow-md transition-transform hover:scale-110 hover:z-10 ${
+                                           theme === 'dark' ? 'border-[#0f172a]' : 'border-white'
+                                        }`}>
+                                           <Avatar className="h-full w-full">
+                                              {member.avatar_url && <AvatarImage src={member.avatar_url.startsWith('http') ? member.avatar_url : `${API_BASE_URL}/${member.avatar_url}`} alt={member.full_name} className="object-cover" />}
+                                              <AvatarFallback className="bg-gradient-to-br from-[#00CCCC] to-[#3b82f6] text-[10px] font-black text-white">
+                                                 {member.full_name?.charAt(0).toUpperCase() || '?'}
+                                              </AvatarFallback>
+                                           </Avatar>
+                                        </div>
+                                     </motion.div>
+                                  ))}
+                                  {extraCount > 0 && (
+                                     <motion.div
+                                        initial={{ opacity: 0, scale: 0 }}
+                                        animate={{ opacity: 1, scale: 1 }}
+                                        transition={{ delay: 0.5 }}
+                                        className={`w-8 h-8 rounded-full border-2 flex items-center justify-center text-[10px] font-black shadow-md ${
+                                           theme === 'dark'
+                                              ? 'bg-blue-900/80 border-[#0f172a] text-blue-300'
+                                              : 'bg-slate-100 border-white text-slate-500'
+                                        }`}
+                                     >
+                                        +{extraCount}
+                                     </motion.div>
+                                  )}
+                                  {members.length === 0 && (
+                                     <span className={`text-[10px] font-bold italic ${theme === 'dark' ? 'text-blue-400/50' : 'text-slate-400'}`}>Aucun membre</span>
+                                  )}
+                               </div>
+
+                               {/* Access button */}
+                               <motion.div
+                                  whileHover={{ scale: 1.08, boxShadow: "0 0 20px rgba(0,204,204,0.4)" }}
+                                  whileTap={{ scale: 0.95 }}
+                                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-r from-[#00CCCC] to-[#0891b2] text-white text-[10px] font-black uppercase tracking-wider shadow-lg shadow-cyan-500/25 border border-white/20 transition-all"
+                               >
+                                  <Rocket size={11} />
+                                  Accéder
+                                  <ArrowRight size={11} className="group-hover:translate-x-0.5 transition-transform" />
+                               </motion.div>
+                            </div>
+                         </div>
+
+                         {/* Bottom neon sweep line */}
+                         <div className="absolute bottom-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-[#00CCCC]/30 to-transparent" />
+                      </motion.div>
+                      </Link>
+                   );
+                })()}
+
+               {(() => {
+                  const activeProject = projects.find(p => p.status !== 'COMPLETED');
+                  if (!activeProject) {
+                     return <ProjectHealth token={token} />;
+                  }
+                  
+                  return <ProjectHealth token={token} />;
+               })() }
+            </div>
+         </div>
+      </motion.div>
+   )
+}
+
+
+

@@ -10,12 +10,14 @@ import string
 
 from app.services.activity_log import log_activity
 from app.services.agents.workflow_service import reassign_project_tasks
+from app.services.email_service import send_project_assignment_email
+import asyncio
 
 router = APIRouter()
 
 async def populate_project_info(project: dict, db):
     # Populate lead info
-    if project.get("lead_id"):
+    if project.get("lead_id") and ObjectId.is_valid(project["lead_id"]):
         lead = await db["users"].find_one({"_id": ObjectId(project["lead_id"])})
         if lead:
             lead["id"] = str(lead.pop("_id"))
@@ -78,7 +80,47 @@ async def create_project(project: ProjectCreate, current_user: dict = Depends(ch
     
     # Log activity
     await log_activity(db, "PROJECT_CREATED", created_project["id"], created_project["name"], current_user)
-    
+
+    # ── Notify all assigned team members by email (non-blocking) ──
+    team_members = created_project.get("team_members", [])
+    if team_members:
+        manager_name = current_user.get("full_name") or current_user.get("email") or "Le Manager"
+        proj_name = created_project.get("name", "Nouveau Projet")
+        proj_desc = created_project.get("description", "")
+        proj_deadline = str(created_project.get("timeline_end") or created_project.get("deadline") or "")
+
+        async def _notify_members():
+            from app.api.endpoints.auth import push_notification
+            for member_id in team_members:
+                try:
+                    if not ObjectId.is_valid(member_id):
+                        continue
+                        
+                    # 1. In-app Notification
+                    await push_notification(
+                        db=db,
+                        user_id=member_id,
+                        title="Nouveau Projet",
+                        message=f"Vous avez été assigné au projet : {proj_name}",
+                        urgency="HIGH"
+                    )
+                    
+                    # 2. Email Notification
+                    member = await db["users"].find_one({"_id": ObjectId(member_id)})
+                    if member and member.get("email"):
+                        send_project_assignment_email(
+                            to_email=member["email"],
+                            member_name=member.get("full_name") or member.get("email"),
+                            project_name=proj_name,
+                            project_description=proj_desc,
+                            deadline=proj_deadline,
+                            manager_name=manager_name,
+                        )
+                except Exception as e:
+                    print(f"[NOTIFY] Error notifying member {member_id}: {e}")
+
+        asyncio.create_task(_notify_members())
+
     return await populate_project_info(created_project, db)
 
 @router.get("/", response_model=List[ProjectResponse])
@@ -119,7 +161,7 @@ async def get_project(project_id: str, current_user: dict = Depends(get_current_
 async def update_project(project_id: str, project_update: dict, current_user: dict = Depends(check_manager_role)):
     db = get_database()
     # Remove fields that shouldn't be updated directly via this endpoint if needed
-    update_data = {k: v for k, v in project_update.items() if k in ["name", "description", "status", "lead_id", "team_members", "progress_percentage", "timeline_end"]}
+    update_data = {k: v for k, v in project_update.items() if k in ["name", "description", "status", "lead_id", "team_members", "progress_percentage", "timeline_end", "archived"]}
     
     result = await db["projects"].update_one(
         {"_id": ObjectId(project_id)},
@@ -149,6 +191,18 @@ async def add_project_member(project_id: str, member_data: dict, current_user: d
         raise HTTPException(status_code=404, detail="Project not found")
         
     updated_project = await db["projects"].find_one({"_id": ObjectId(project_id)})
+    
+    # Notify new member
+    from app.api.endpoints.auth import push_notification
+    if updated_project and ObjectId.is_valid(member_id):
+        await push_notification(
+            db=db,
+            user_id=member_id,
+            title="Nouveau Projet",
+            message=f"Vous avez été ajouté au projet : {updated_project.get('name', 'Inconnu')}",
+            urgency="HIGH"
+        )
+        
     updated_project["id"] = str(updated_project.pop("_id"))
     return await populate_project_info(updated_project, db)
 
@@ -209,3 +263,39 @@ async def trigger_reassign_tasks(project_id: str, current_user: dict = Depends(c
         await log_activity(db, "PROJECT_UPDATED", project_id, project["name"], current_user, details=result_msg)
         
     return {"message": result_msg}
+
+@router.post("/{project_id}/archive", response_model=ProjectResponse)
+async def archive_project(project_id: str, current_user: dict = Depends(check_manager_role)):
+    db = get_database()
+    if not ObjectId.is_valid(project_id):
+        raise HTTPException(status_code=400, detail="Invalid project ID")
+    
+    result = await db["projects"].update_one(
+        {"_id": ObjectId(project_id)},
+        {"$set": {"archived": True}}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    project = await db["projects"].find_one({"_id": ObjectId(project_id)})
+    project["id"] = str(project.pop("_id"))
+    await log_activity(db, "PROJECT_ARCHIVED", project_id, project["name"], current_user)
+    return await populate_project_info(project, db)
+
+@router.post("/{project_id}/unarchive", response_model=ProjectResponse)
+async def unarchive_project(project_id: str, current_user: dict = Depends(check_manager_role)):
+    db = get_database()
+    if not ObjectId.is_valid(project_id):
+        raise HTTPException(status_code=400, detail="Invalid project ID")
+    
+    result = await db["projects"].update_one(
+        {"_id": ObjectId(project_id)},
+        {"$set": {"archived": False}}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    project = await db["projects"].find_one({"_id": ObjectId(project_id)})
+    project["id"] = str(project.pop("_id"))
+    await log_activity(db, "PROJECT_UNARCHIVED", project_id, project["name"], current_user)
+    return await populate_project_info(project, db)

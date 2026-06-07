@@ -3,10 +3,13 @@ from typing import List, Optional
 from bson import ObjectId
 from app.core.db import get_database
 from app.models.tech_article import TechArticleCreate, TechArticleResponse
-from app.services.veille_scraper import fetch_and_store_articles
+from app.services.veille_scraper import fetch_and_store_articles, OFFICIAL_SOURCE_URLS
 from datetime import datetime
 
 router = APIRouter()
+
+# ── The 5 official source URLs (whitelist for DB queries) ────────────────────
+ALLOWED_SOURCE_URLS = list(OFFICIAL_SOURCE_URLS)
 
 @router.get("/", response_model=List[TechArticleResponse])
 async def get_tech_articles(background_tasks: BackgroundTasks, category: Optional[str] = None):
@@ -25,11 +28,11 @@ async def get_tech_articles(background_tasks: BackgroundTasks, category: Optiona
             should_sync = True
             
     if should_sync:
-        # Trigger sync in background so the user doesn't wait
         background_tasks.add_task(fetch_and_store_articles)
     # ---------------------------------
 
-    query = {}
+    # ⚡ LEVEL 4 (Database): ONLY return articles from the 5 official sources
+    query: dict = {"source_url": {"$in": ALLOWED_SOURCE_URLS}}
     if category and category.lower() != "tout":
         query["category"] = category
         
@@ -81,15 +84,17 @@ async def get_radar_stats():
     stats_cursor = db.tech_articles.aggregate(pipeline)
     stats_list = await stats_cursor.to_list(length=100)
     
-    # Convert list to a dictionary for easier consumption
+    # Convert list to a dictionary
     stats_dict = {item["_id"]: item["count"] for item in stats_list}
     
-    # Define the mapping from our Radar categories to the DB categories
-    # If the DB uses different names, we should handle mapping here
-    return {
-        "IA Générative (LLMs)": stats_dict.get("IA Générative (LLMs)", 0) or 5, # Fallback to 5 for demo if 0
-        "Serverless Functions": stats_dict.get("Serverless Functions", 0) or 4,
-        "Vector Databases": stats_dict.get("Vector Databases", 0) or 4,
-        "GraphQL & Apollo": stats_dict.get("GraphQL & Apollo", 0) or 2,
-        "Tailwind CSS v4": stats_dict.get("Tailwind CSS v4", 0) or 2
-    }
+    # If we have no data yet, return some realistic defaults
+    if not stats_dict:
+        return {
+            "IA & Data": 5,
+            "Développement": 8,
+            "Infrastructure": 4,
+            "Cybersécurité": 3,
+            "Innovation": 6
+        }
+    
+    return stats_dict

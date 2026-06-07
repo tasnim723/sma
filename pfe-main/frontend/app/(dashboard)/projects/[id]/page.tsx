@@ -315,7 +315,7 @@ export default function ProjectDetailPage() {
           </div>
           <div className="flex gap-3 shrink-0">
             <Button variant="outline" size="sm" className="h-10 text-xs font-black px-4" onClick={() => window.location.reload()}>Rafraîchir</Button>
-            <Button size="sm" className="h-10 text-xs font-black bg-[#00BCD4] hover:bg-[#0097a7] px-4" onClick={() => handleAddTask("BACKLOG")}>+ Tâche</Button>
+            <Button size="sm" className="h-10 text-xs font-black bg-[#00BCD4] hover:bg-[#0097a7] px-4" onClick={() => handleAddTask("TODO")}>+ Tâche</Button>
           </div>
         </div>
       </div>

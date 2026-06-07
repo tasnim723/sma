@@ -1,18 +1,20 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field  # type: ignore
 from typing import Optional, List, Any
 from datetime import datetime
 
 class ProjectBase(BaseModel):
     name: str
     description: str
+    timeline_start: Optional[datetime] = None
     timeline_end: datetime
-    status: str = "ON_TRACK" # ON_TRACK, AT_RISK, DELAYED
+    status: str = "ON_TRACK" # ON_TRACK, AT_RISK, DELAYED, DONE
     progress_percentage: int = 0
     lead_id: Optional[str] = None
     milestones: List[dict] = [] # List of {title: str, date: datetime}
     backup_plan: Optional[str] = None
     readable_id: Optional[str] = None
     current_risk: Optional[str] = None
+    archived: bool = False
 
 class ProjectCreate(ProjectBase):
     team_members: List[str] = [] # ObjectIDs of users

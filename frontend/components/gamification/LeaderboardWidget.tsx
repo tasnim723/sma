@@ -5,6 +5,8 @@ import { motion, AnimatePresence } from "framer-motion"
 import { Trophy, ChevronDown, Shield, Flame, Rocket } from "lucide-react"
 import axios from "axios"
 import { useAuthStore } from "@/lib/store"
+import { API_BASE_URL } from "@/lib/api"
+import { useLang } from "@/lib/useLang"
 
 interface LeaderboardUser {
     id: string
@@ -20,11 +22,12 @@ export default function LeaderboardWidget() {
     const [users, setUsers] = useState<LeaderboardUser[]>([])
     const [loading, setLoading] = useState(true)
     const { token } = useAuthStore()
+    const { lang } = useLang()
 
     useEffect(() => {
         const fetchLeaderboard = async () => {
             try {
-                const res = await axios.get("http://localhost:8000/api/members/leaderboard", {
+                const res = await axios.get(`${API_BASE_URL}/api/members/leaderboard`, {
                     headers: { Authorization: `Bearer ${token}` }
                 })
                 setUsers(res.data)
@@ -56,31 +59,31 @@ export default function LeaderboardWidget() {
                     <ChevronDown size={11} className="text-white opacity-60" />
                 </div>
             </div>
-            
+
             <div className="absolute top-1 left-4 z-20 scale-75">
                 <div className="bg-[#8DA3A6] w-6 h-6 clip-flag shadow-sm" />
             </div>
 
             {/* Main Widget Container */}
-            <div className="bg-[#F1F5F9]/90 backdrop-blur-3xl rounded-[2rem] p-4 pt-8 border border-white shadow-xl shadow-slate-200/40 h-full flex flex-col relative overflow-hidden group">
-                <div className="absolute inset-0 bg-gradient-to-tr from-white/10 via-transparent to-transparent pointer-events-none" />
-                
+            <div className="bg-white/20 backdrop-blur-3xl rounded-[2.5rem] p-4 pt-8 shadow-[0_10px_30px_rgba(139,92,246,0.15),inset_0_0_0_1px_rgba(255,255,255,0.4)] h-full flex flex-col relative overflow-hidden group border border-violet-500/10 light-sweep-container">
+                <div className="absolute inset-0 bg-gradient-to-tr from-violet-500/5 via-transparent to-transparent pointer-events-none" />
+
                 <div className="text-center mb-4 relative z-10">
-                    <h3 className="text-[11px] font-black tracking-[0.2em] text-[#334155] uppercase leading-tight flex flex-col items-center">
-                        Classement
-                        <span className="text-[12px] mt-0.5">Hebdomadaire</span>
+                    <h3 className="text-[11px] font-black tracking-[0.2em] text-slate-800 uppercase leading-tight flex flex-col items-center drop-shadow-sm">
+                        {lang === 'fr' ? 'Classement' : 'Ranking'}
+                        <span className="text-[12px] mt-0.5 text-violet-500">{lang === 'fr' ? 'Hebdomadaire' : 'Weekly'}</span>
                     </h3>
-                    
+
                     {/* Integrated Badges Row */}
-                    <div className="flex items-center justify-center gap-2 mt-4 pb-2 border-b border-white/50">
+                    <div className="flex items-center justify-center gap-2 mt-4 pb-4 border-b border-violet-500/20">
                         {[
-                            { color: "bg-rose-100",   shadow: "shadow-rose-200",   icon: <Shield size={18} fill="currentColor" />, text: "text-rose-500", label: "Starter" },
-                            { color: "bg-orange-100", shadow: "shadow-orange-200", icon: <Flame size={18} fill="currentColor" />, text: "text-orange-500", label: "Bronze" },
-                            { color: "bg-sky-100",    shadow: "shadow-sky-200",    icon: <Rocket size={18} fill="currentColor" />, text: "text-sky-500", label: "Silver" },
-                            { color: "bg-amber-100",  shadow: "shadow-amber-200",  icon: <Trophy size={18} fill="currentColor" />, text: "text-amber-500", label: "Gold" }
+                            { color: "bg-rose-500/10", border: "border-rose-500/30", shadow: "shadow-[0_0_10px_rgba(244,63,94,0.2)] hover:shadow-[0_0_15px_rgba(244,63,94,0.4)]", icon: <Shield size={18} fill="currentColor" />, text: "text-rose-500", label: lang === 'fr' ? "Débutant" : "Starter" },
+                            { color: "bg-orange-500/10", border: "border-orange-500/30", shadow: "shadow-[0_0_10px_rgba(249,115,22,0.2)] hover:shadow-[0_0_15px_rgba(249,115,22,0.4)]", icon: <Flame size={18} fill="currentColor" />, text: "text-orange-500", label: "Bronze" },
+                            { color: "bg-sky-500/10", border: "border-sky-500/30", shadow: "shadow-[0_0_10px_rgba(14,165,233,0.2)] hover:shadow-[0_0_15px_rgba(14,165,233,0.4)]", icon: <Rocket size={18} fill="currentColor" />, text: "text-sky-500", label: lang === 'fr' ? "Argent" : "Silver" },
+                            { color: "bg-amber-500/10", border: "border-amber-500/30", shadow: "shadow-[0_0_10px_rgba(245,158,11,0.2)] hover:shadow-[0_0_15px_rgba(245,158,11,0.4)]", icon: <Trophy size={18} fill="currentColor" />, text: "text-amber-500", label: lang === 'fr' ? "Or" : "Gold" }
                         ].map((b, i) => (
                             <div key={i} className="relative group/badge">
-                                <div className={`w-10 h-10 rounded-xl ${b.color} ${b.shadow} shadow-md flex items-center justify-center ${b.text} border border-white/60 cursor-pointer transition-transform hover:scale-110 hover:-translate-y-1 duration-200`}>
+                                <div className={`w-10 h-10 rounded-xl ${b.color} ${b.border} ${b.shadow} backdrop-blur-md flex items-center justify-center ${b.text} border cursor-pointer transition-all hover:scale-110 hover:-translate-y-1 duration-300`}>
                                     {b.icon}
                                 </div>
                                 {/* Tooltip */}
@@ -93,58 +96,64 @@ export default function LeaderboardWidget() {
                     </div>
                 </div>
 
-                <div className="space-y-0.5 relative z-10 flex-1 overflow-y-auto custom-scrollbar">
+                <div className="space-y-2 relative z-10 flex-1 overflow-y-auto custom-scrollbar pt-1">
                     <AnimatePresence>
-                        {users.slice(0, 3).map((user, idx) => (
-                            <motion.div 
-                                key={user.id}
-                                initial={{ opacity: 0, scale: 0.9 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                className={`flex items-center gap-3 p-2.5 rounded-[1.25rem] relative transition-all duration-500
-                                    ${idx === 0 ? "bg-white/80 shadow-sm border border-amber-200/40" : 
-                                      idx === 1 ? "bg-white/60 shadow-sm border border-slate-200/40" : 
-                                      idx === 2 ? "bg-white/40 shadow-sm border border-orange-200/40" : 
-                                      "hover:bg-white/40"}
-                                    ${user.is_me ? "ring-2 ring-[#00BCD4]/40 z-10" : ""}
-                                `}
-                            >
-                                <div className="w-4 text-[11px] font-black text-slate-700">
-                                    {idx + 1}.
-                                </div>
+                        {users.filter(u => !u.full_name.toLowerCase().includes('islem')).slice(0, 3).map((user, idx) => {
+                            const pastels = ["fbcfe8", "bbf7d0", "bfdbfe", "fef08a", "e9d5ff", "fed7aa", "a7f3d0", "c7d2fe", "fecaca", "fde68a"];
+                            const nameScore = user.full_name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+                            const bgColor = pastels[nameScore % pastels.length];
 
-                                <div className="relative">
-                                    <div className={`w-10 h-10 rounded-full overflow-hidden border-2 shadow-sm
-                                        ${idx === 0 ? "border-[#D4AF37]" : "border-white"}
-                                    `}>
-                                        <img 
-                                            src={`https://ui-avatars.com/api/?name=${user.full_name}&background=random`} 
-                                            className="w-full h-full object-cover" 
-                                            alt={user.full_name} 
-                                        />
+                            return (
+                                <motion.div
+                                    key={user.id || (user as any)._id || idx}
+                                    initial={{ opacity: 0, scale: 0.9 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    className={`flex items-center gap-3 p-2.5 rounded-2xl relative transition-all duration-500 backdrop-blur-sm
+                                        ${idx === 0 ? "bg-white/60 shadow-[0_4px_15px_rgba(212,175,55,0.15)] border border-[#D4AF37]/30" :
+                                            idx === 1 ? "bg-white/40 shadow-sm border border-slate-300/40" :
+                                                idx === 2 ? "bg-white/30 shadow-sm border border-orange-300/30" :
+                                                    "bg-white/20 hover:bg-white/40 border border-white/20"}
+                                        ${user.is_me ? "ring-2 ring-violet-500/50 shadow-[0_0_15px_rgba(139,92,246,0.3)] z-10" : ""}
+                                    `}
+                                >
+                                    <div className="w-4 text-[11px] font-black text-slate-700">
+                                        {idx + 1}.
                                     </div>
-                                    <div className="absolute -top-1 -right-1 w-4 h-4 bg-white border border-slate-50 rounded-full flex items-center justify-center text-[7px] font-black text-slate-800 shadow-sm">
-                                        {user.level}
+
+                                    <div className="relative">
+                                        <div className={`w-10 h-10 rounded-full overflow-hidden border-2 shadow-sm
+                                            ${idx === 0 ? "border-[#D4AF37]" : "border-white"}
+                                        `}>
+                                            <img
+                                                src={`https://ui-avatars.com/api/?name=${user.full_name}&background=${bgColor}&color=334155&bold=true`}
+                                                className="w-full h-full object-cover"
+                                                alt={user.full_name}
+                                            />
+                                        </div>
+                                        <div className="absolute -top-1 -right-1 w-4 h-4 bg-white border border-slate-50 rounded-full flex items-center justify-center text-[7px] font-black text-slate-800 shadow-sm">
+                                            {user.level}
+                                        </div>
                                     </div>
-                                </div>
 
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-[11px] font-black text-slate-800 truncate leading-none mb-0.5">
-                                        {user.is_me ? "Vous" : user.full_name.split(' ')[0]}
-                                    </p>
-                                    <p className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">LVL {user.level}</p>
-                                </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-[11px] font-black text-slate-800 truncate leading-none mb-0.5">
+                                            {user.is_me ? (lang === 'fr' ? "Vous" : "You") : user.full_name.split(' ')[0]}
+                                        </p>
+                                        <p className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">LVL {user.level}</p>
+                                    </div>
 
-                                <div className="text-right shrink-0">
-                                    <p className="text-[11px] font-black text-slate-800 tabular-nums">
-                                        {user.weekly_xp} <span className="text-[8px] text-amber-500">XP</span>
-                                    </p>
-                                </div>
+                                    <div className="text-right shrink-0">
+                                        <p className="text-[11px] font-black text-slate-800 tabular-nums">
+                                            {user.weekly_xp} <span className="text-[8px] text-amber-500">XP</span>
+                                        </p>
+                                    </div>
 
-                                {user.is_me && (
-                                    <div className="absolute left-0 top-1/4 bottom-1/4 w-0.5 bg-emerald-400 rounded-r-full" />
-                                )}
-                            </motion.div>
-                        ))}
+                                    {user.is_me && (
+                                        <div className="absolute left-0 top-1/4 bottom-1/4 w-0.5 bg-emerald-400 rounded-r-full" />
+                                    )}
+                                </motion.div>
+                            );
+                        })}
                     </AnimatePresence>
                 </div>
             </div>

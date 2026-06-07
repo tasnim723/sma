@@ -1,4 +1,5 @@
 "use client"
+import { API_BASE_URL } from "@/lib/api"
 
 import { useEffect, useState, useCallback, useMemo } from "react"
 import ReactFlow, { 
@@ -16,6 +17,7 @@ import TaskDetailModal from "@/components/kanban/TaskDetailModal"
 import axios from "axios"
 import { useAuthStore } from "@/lib/store"
 import { Lightbulb, RefreshCw, Plus } from "lucide-react"
+import { useLang } from "@/lib/useLang"
 
 const nodeTypes = {
   ideaNode: IdeaNode,
@@ -23,6 +25,7 @@ const nodeTypes = {
 
 export default function IdeaTreePage() {
   const token = useAuthStore(state => state.token)
+  const { t } = useLang()
   const [nodes, setNodes, onNodesChange] = useNodesState([])
   const [edges, setEdges, onEdgesChange] = useEdgesState([])
   const [loading, setLoading] = useState(true)
@@ -34,8 +37,8 @@ export default function IdeaTreePage() {
     setLoading(true)
     try {
       const [tasksRes, usersRes] = await Promise.all([
-        axios.get(`http://localhost:8000/api/tasks/me/all`, { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get(`http://localhost:8000/api/members/`, { headers: { Authorization: `Bearer ${token}` } })
+        axios.get(`${API_BASE_URL}/api/tasks/me/all`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`${API_BASE_URL}/api/members/`, { headers: { Authorization: `Bearer ${token}` } })
       ])
       
       const ideas = tasksRes.data || []
@@ -89,7 +92,7 @@ export default function IdeaTreePage() {
 
   const handleUpdateIdea = async (ideaId: string, updates: any) => {
     try {
-      const res = await axios.put(`http://localhost:8000/api/tasks/${ideaId}`,
+      const res = await axios.put(`${API_BASE_URL}/api/tasks/${ideaId}`,
         updates,
         { headers: { Authorization: `Bearer ${token}` } }
       )
@@ -101,9 +104,9 @@ export default function IdeaTreePage() {
   }
 
   const handleDeleteIdea = async (ideaId: string) => {
-    if (!confirm("Supprimer cette idée ?")) return
+    if (!confirm(t.tasks.deleteConfirm)) return
     try {
-      await axios.delete(`http://localhost:8000/api/tasks/${ideaId}`,
+      await axios.delete(`${API_BASE_URL}/api/tasks/${ideaId}`,
         { headers: { Authorization: `Bearer ${token}` } }
       )
       fetchData()
@@ -122,8 +125,8 @@ export default function IdeaTreePage() {
             <Lightbulb size={24} className="text-rose-600" />
           </div>
           <div>
-            <h2 className="text-xl font-black text-slate-800 tracking-tight">L'Arbre des Idées (Mind Map)</h2>
-            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Visualisez et ramifiez vos concepts</p>
+            <h2 className="text-xl font-black text-slate-800 tracking-tight">{t.tasks.title}</h2>
+            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">{t.tasks.subtitle}</p>
           </div>
         </div>
 
@@ -136,7 +139,7 @@ export default function IdeaTreePage() {
            </button>
            <button className="flex items-center gap-2 bg-slate-900 text-white px-6 py-3 rounded-2xl font-bold shadow-xl hover:bg-slate-800 transition-all">
              <Plus size={20} />
-             Nouvelle Étincelle
+             {t.tasks.newIdea}
            </button>
         </div>
       </div>

@@ -48,8 +48,7 @@ async def upload_deliverable(
 
 @router.post("/cv")
 async def upload_cv(
-    file: UploadFile = File(...),
-    current_user: dict = Depends(get_current_user)
+    file: UploadFile = File(...)
 ):
     import uuid
     # Use uuid to prevent file name collisions

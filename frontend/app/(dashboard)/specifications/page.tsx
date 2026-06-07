@@ -1,4 +1,5 @@
 "use client"
+import { API_BASE_URL } from "@/lib/api"
 
 import { useEffect, useState } from "react"
 import { useAuthStore } from "@/lib/store"
@@ -8,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { BookOpen, FileText, Calendar, ChevronRight } from "lucide-react"
 import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 
 interface Specification {
   id: string
@@ -26,7 +28,7 @@ export default function SpecificationsPage() {
 
   const fetchSpecs = async () => {
     try {
-      const res = await axios.get("http://localhost:8000/api/specifications/", {
+      const res = await axios.get(`${API_BASE_URL}/api/specifications/`, {
         headers: { Authorization: `Bearer ${token || ""}` }
       })
       setSpecs(res.data)
@@ -95,7 +97,7 @@ export default function SpecificationsPage() {
                     </DialogHeader>
                     <div className="mt-6 prose prose-slate max-w-none">
                       <div className="markdown-preview">
-                        <ReactMarkdown>
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
                           {spec.markdown_content}
                         </ReactMarkdown>
                       </div>

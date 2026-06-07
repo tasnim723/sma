@@ -67,7 +67,7 @@ async def create_project_tasks_func(project_id: str, tasks: List[dict]) -> str:
         clean_task = {
             "title": task.get("title", task.get("name", "Untitled Task")),
             "description": task.get("description", task.get("details", "")),
-            "status": "BACKLOG",
+            "status": task.get("status", "TODO"),  # Respect provided status, default to TODO
             "priority": str(task.get("priority", "MEDIUM")).upper(),
             "project_id": real_project_id,
             "created_at": datetime.utcnow(),
@@ -90,14 +90,7 @@ async def create_project_tasks_func(project_id: str, tasks: List[dict]) -> str:
                     if user_by_email:
                         real_assignees.append(str(user_by_email["_id"]))
         
-        clean_task["assignee_ids"] = real_assignees
-        if real_assignees:
-            clean_task["status"] = "TODO"
-            # Ensure assigned users are pushed natively into the project team
-            await db["projects"].update_one(
-                {"_id": ObjectId(real_project_id)},
-                {"$addToSet": {"team_members": {"$each": real_assignees}}}
-            )
+        clean_task["assignee_ids"] = real_assignees if real_assignees else []
             
         await db["tasks"].insert_one(clean_task)
     return f"Successfully created {len(tasks)} tasks."

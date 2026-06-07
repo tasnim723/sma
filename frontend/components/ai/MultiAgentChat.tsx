@@ -1,4 +1,5 @@
 "use client"
+import { API_BASE_URL } from "@/lib/api"
 
 import { useState, useRef, useEffect } from "react"
 import { Send, Bot, User as UserIcon, AlertCircle, Mic, MicOff, Trash2, X, Paperclip } from "lucide-react"
@@ -8,7 +9,7 @@ import { useAuthStore } from "@/lib/store"
 import { useChatStore, Message } from "@/lib/chatStore"
 import ReactMarkdown from "react-markdown"
 
-const defaultMessage: Message = { role: "ai", content: "I am your AI Orchestrator. How can I help you manage your workspace today?" }
+const defaultMessage: Message = { role: "ai", content: "Je suis votre AI Orchestrator. Comment puis-je vous aider à gérer votre espace de travail aujourd'hui ?" }
 
 export default function MultiAgentChat() {
   const { messages, addMessage, clearMessages } = useChatStore()
@@ -92,7 +93,7 @@ export default function MultiAgentChat() {
       const formData = new FormData()
       formData.append("file", blob, "vocal.webm")
 
-      const res = await axios.post("http://localhost:8000/api/ai/voice", formData, {
+      const res = await axios.post(`${API_BASE_URL}/api/ai/voice`, formData, {
         headers: { "Authorization": `Bearer ${token}`, "Content-Type": "multipart/form-data" }
       })
 
@@ -180,7 +181,7 @@ export default function MultiAgentChat() {
     try {
       const history = messages.map(m => ({ role: m.role, content: m.content }))
 
-      const response = await fetch("http://127.0.0.1:8000/api/ai/chat", {
+      const response = await fetch(`${API_BASE_URL}/api/ai/chat`, {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${token}`,

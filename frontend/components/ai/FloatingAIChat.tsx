@@ -1,18 +1,22 @@
 "use client"
+import { API_BASE_URL } from "@/lib/api"
 
 import { useState, useRef, useEffect } from "react"
-import { Send, Bot, User as UserIcon, AlertCircle, Mic, MicOff, Trash2, X, MessageSquare, Paperclip } from "lucide-react"
+import { Send, Bot, User as UserIcon, AlertCircle, Mic, Square, Trash2, X, MessageSquare, Paperclip } from "lucide-react"
 import axios from "axios"
 import { motion, AnimatePresence } from "framer-motion"
 import { useAuthStore } from "@/lib/store"
+import { useLang } from "@/lib/useLang"
 import { useChatStore, Message } from "@/lib/chatStore"
 import ReactMarkdown from "react-markdown"
 
-const defaultMessage: Message = { role: "ai", content: "I am your AI Orchestrator. How can I help you manage your workspace today?" }
+const defaultMessage: Message = { role: "ai", content: "Je suis votre AI Orchestrator. Comment puis-je vous aider à gérer votre espace de travail aujourd'hui ?" }
 
 export default function FloatingAIChat() {
   const [isOpen, setIsOpen] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const { messages, addMessage, clearMessages } = useChatStore()
+  const { lang } = useLang()
   const [input, setInput] = useState("")
   const [loading, setLoading] = useState(false)
   const [streamingMessage, setStreamingMessage] = useState("")
@@ -40,10 +44,7 @@ export default function FloatingAIChat() {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
       mediaRecorderRef.current.stop()
     }
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop())
-      streamRef.current = null
-    }
+    // Note: Do NOT stop tracks here. They are stopped inside onstop after the blob is saved.
     clearInterval(timerRef.current)
     setIsListening(false)
     setRecordingDuration(0)
@@ -51,9 +52,22 @@ export default function FloatingAIChat() {
 
   const startRecording = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        } 
+      })
       streamRef.current = stream
-      const recorder = new MediaRecorder(stream)
+      
+      // Force Opus codec if available to prevent Chrome from creating unparseable files
+      let options = {}
+      if (typeof MediaRecorder.isTypeSupported === 'function' && MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+        options = { mimeType: 'audio/webm;codecs=opus' }
+      }
+      
+      const recorder = new MediaRecorder(stream, options)
       mediaRecorderRef.current = recorder
       chunksRef.current = []
       shouldDiscardRef.current = false
@@ -67,12 +81,27 @@ export default function FloatingAIChat() {
           chunksRef.current = []
           return
         }
-        const audioBlob = new Blob(chunksRef.current, { type: "audio/webm" })
-        if (audioBlob.size > 1000) { 
-          sendAudioToBackend(audioBlob)
+        // Use the actual mimeType used by the browser (crucial for Safari/Firefox compatibility)
+        const mimeType = recorder.mimeType || "audio/webm"
+        const audioBlob = new Blob(chunksRef.current, { type: mimeType })
+        
+        // A completely empty WebM/MP4 header is around 200-300 bytes.
+        // We use 500 bytes to allow highly compressed (Opus) short voice clips while preventing empty crashes.
+        if (audioBlob.size > 500) {  
+          sendAudioToBackend(audioBlob, mimeType)
+        } else {
+          addMessage({ role: "ai", content: "Enregistrement trop court. Parlez un peu plus longtemps." })
+        }
+        
+        // Kill tracks AFTER we've secured the blob (prevents truncation bugs)
+        if (streamRef.current) {
+          streamRef.current.getTracks().forEach(track => track.stop())
+          streamRef.current = null
         }
       }
 
+      // Start recording normally without timeslice to ensure a single, valid, unfragmented WebM/MP4 file is generated.
+      // (Fragmented chunks can sometimes confuse external Whisper APIs).
       recorder.start()
       setIsListening(true)
       setRecordingDuration(0)
@@ -93,18 +122,38 @@ export default function FloatingAIChat() {
     }
   }
 
-  const sendAudioToBackend = async (blob: Blob) => {
+  const sendAudioToBackend = async (blob: Blob, mimeType: string = "audio/webm") => {
     setLoading(true)
     try {
+      const ext = mimeType.includes("mp4") ? "mp4" : mimeType.includes("ogg") ? "ogg" : "webm"
       const formData = new FormData()
-      formData.append("file", blob, "vocal.webm")
-      const res = await axios.post("http://localhost:8000/api/ai/voice", formData, {
+      formData.append("file", blob, `vocal.${ext}`)
+      
+      const res = await axios.post(`${API_BASE_URL}/api/ai/voice`, formData, {
         headers: { "Authorization": `Bearer ${token}`, "Content-Type": "multipart/form-data" }
       })
 
       if (res.data && res.data.text) {
-        setInput(res.data.text)
-        await handleSendInternal(res.data.text)
+        const transcribedText = res.data.text.trim();
+        // Filter out common Whisper hallucinations for silence/noise
+        const lowerText = transcribedText.toLowerCase().replace(/[^a-z]/g, '');
+        const rawLower = transcribedText.toLowerCase();
+        
+        const isHallucination = 
+            lowerText === 'you' || 
+            lowerText === 'thankyou' || 
+            rawLower.includes('sous-titrage') || 
+            rawLower.includes('radio-canada') || 
+            rawLower.includes('amara.org') ||
+            transcribedText.length === 0;
+
+        if (isHallucination) {
+          addMessage({ role: "ai", content: "Je n'ai pas bien compris. Veuillez parler plus fort ou plus longtemps." });
+          return;
+        }
+        
+        setInput(transcribedText)
+        await handleSendInternal(transcribedText)
       }
     } catch (err: any) {
       console.error("Transcription failed:", err)
@@ -138,7 +187,20 @@ export default function FloatingAIChat() {
     scrollToBottom();
   }, [messages, streamingMessage]);
 
-  // Removed manual localStorage sync - handled by useChatStore persist middleware
+  useEffect(() => {
+    const handleTrigger = (e: any) => {
+      const { query } = e.detail;
+      setIsOpen(true);
+      if (query) {
+        // Use a small delay to ensure the window is open before sending
+        setTimeout(() => {
+          handleSendInternal(query);
+        }, 100);
+      }
+    };
+    window.addEventListener("trigger-ai-chat", handleTrigger);
+    return () => window.removeEventListener("trigger-ai-chat", handleTrigger);
+  }, [messages, token]); // Re-bind if dependencies change
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -164,8 +226,9 @@ export default function FloatingAIChat() {
     try {
       const history = messages.map(m => ({ role: m.role, content: m.content }))
 
-      const response = await fetch("http://localhost:8000/api/ai/chat", {
+      const response = await fetch(`${API_BASE_URL}/api/ai/chat`, {
         method: "POST",
+        mode: "cors",
         headers: {
           "Authorization": `Bearer ${token}`,
           "Content-Type": "application/json"
@@ -177,6 +240,11 @@ export default function FloatingAIChat() {
         })
       })
 
+      if (!response.ok) {
+        const errText = await response.text().catch(() => "")
+        console.error(`AI Chat HTTP ${response.status}:`, errText)
+        throw new Error(`HTTP ${response.status}: ${errText.slice(0, 200)}`)
+      }
       if (!response.body) throw new Error("No response body")
       const reader = response.body.getReader()
       const decoder = new TextDecoder()
@@ -226,8 +294,14 @@ export default function FloatingAIChat() {
       setStreamingMessage("")
       setCurrentThinking("")
     } catch (err: any) {
-      console.error(err)
-      addMessage({ role: "ai", content: "Error communicating with AI backend." })
+      console.error("AI Chat Error:", err)
+      let errorMsg = "Désolé, une erreur de communication est survenue. Veuillez réessayer."
+      if (err?.message === "No response body") {
+        errorMsg = "Le serveur IA n'a pas renvoyé de réponse. Vérifiez que le backend est démarré."
+      } else if (err?.name === "TypeError" && err?.message?.includes("fetch")) {
+        errorMsg = "Impossible de contacter le serveur backend. Vérifiez qu'il est démarré."
+      }
+      addMessage({ role: "ai", content: errorMsg })
     } finally {
       setLoading(false)
       setCurrentAction(null)
@@ -252,13 +326,9 @@ export default function FloatingAIChat() {
             </div>
             <div className="flex items-center gap-2">
               <button 
-                onClick={() => {
-                  if (confirm("Effacer l'historique ?")) {
-                    clearMessages()
-                  }
-                }}
+                onClick={() => setShowDeleteConfirm(true)}
                 className="p-2.5 hover:bg-white/10 rounded-xl transition-all"
-                title="Clear History"
+                title={lang === 'fr' ? "Effacer l'historique" : "Clear History"}
               >
                 <Trash2 size={20} />
               </button>
@@ -302,7 +372,7 @@ export default function FloatingAIChat() {
                     onClick={() => stopRecording(true)}
                     className="mt-4 px-6 py-2 rounded-xl border border-slate-200 text-slate-500 font-bold text-xs uppercase hover:bg-slate-50 transition-all"
                   >
-                    Annuler
+                    {lang === 'fr' ? 'Annuler' : 'Cancel'}
                   </button>
                 </motion.div>
               )}
@@ -321,70 +391,84 @@ export default function FloatingAIChat() {
                   <div className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 shadow-md ${m.role === 'user' ? 'bg-[#00BCD4] text-white' : 'bg-white border border-slate-100 text-[#00BCD4]'}`}>
                     {m.role === 'user' ? <UserIcon size={18} /> : <Bot size={18} />}
                   </div>
-                  <div className={`rounded-3xl p-5 text-[15px] font-medium leading-relaxed shadow-sm markdown-content ${m.role === 'user' ? 'bg-[#00BCD4] text-white rounded-tr-sm' : 'bg-white border border-slate-200/60 text-slate-800 rounded-tl-sm'}`}>
+                  <div className={`rounded-3xl p-5 text-[15px] font-medium leading-relaxed shadow-sm markdown-content group relative ${m.role === 'user' ? 'bg-[#00BCD4] text-white rounded-tr-sm' : 'bg-white border border-slate-200/60 text-slate-800 rounded-tl-sm'}`}>
                     <ReactMarkdown>{m.content}</ReactMarkdown>
+                    
+                    {/* Individual Message Deletion */}
+                    <button 
+                      onClick={() => {
+                        const newMessages = [...messages]
+                        newMessages.splice(i, 1)
+                        useChatStore.getState().setMessages(newMessages)
+                      }}
+                      className={`absolute -top-2 ${m.role === 'user' ? '-left-2' : '-right-2'} p-1.5 bg-white border border-slate-100 text-slate-400 hover:text-rose-500 rounded-lg shadow-sm opacity-0 group-hover:opacity-100 transition-all z-20`}
+                      title={lang === 'fr' ? "Supprimer ce message" : "Delete message"}
+                    >
+                      <Trash2 size={12} />
+                    </button>
                   </div>
                 </div>
               ))}
             
-            {(loading || streamingMessage) && (
-               <div className="flex flex-col gap-4 max-w-[90%]">
-                 {(currentThinking || currentAction) && (
-                   <div className="ml-14 bg-indigo-50/70 border border-indigo-100 rounded-2xl p-4 text-xs text-slate-500 italic shadow-sm backdrop-blur-sm">
-                      {currentAction && (
-                        <div className="flex items-center gap-2 mb-2 font-black text-[#00BCD4] uppercase tracking-widest text-[10px]">
-                           <span className="relative flex h-2 w-2">
-                             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
-                             <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-500"></span>
-                           </span>
-                           Executing {currentAction.replace(/_/g, ' ')}...
+              {(loading || streamingMessage) && (
+                <div className="flex flex-col gap-4 max-w-[90%]">
+                  {(currentThinking || currentAction) && (
+                    <div className="ml-14 bg-indigo-50/70 border border-indigo-100 rounded-2xl p-4 text-xs text-slate-500 italic shadow-sm backdrop-blur-sm">
+                        {currentAction && (
+                          <div className="flex items-center gap-2 mb-2 font-black text-[#00BCD4] uppercase tracking-widest text-[10px]">
+                            <span className="relative flex h-2 w-2">
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+                              <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-500"></span>
+                            </span>
+                            Executing {currentAction.replace(/_/g, ' ')}...
+                          </div>
+                        )}
+                        {currentThinking && <p className="leading-relaxed">Thinking: {currentThinking}</p>}
+                    </div>
+                  )}
+                  {streamingMessage.replace(/<thinking>[\s\S]*?<\/thinking>/g, "").trim() && (
+                      <div className="flex gap-4 animate-in fade-in duration-500">
+                        <div className="w-10 h-10 rounded-2xl bg-white border border-slate-100 text-[#00BCD4] flex items-center justify-center shrink-0 shadow-md">
+                          <Bot size={18} />
                         </div>
-                      )}
-                      {currentThinking && <p className="leading-relaxed">Thinking: {currentThinking}</p>}
-                   </div>
-                 )}
-                 {streamingMessage.replace(/<thinking>[\s\S]*?<\/thinking>/g, "").trim() && (
-                    <div className="flex gap-4 animate-in fade-in duration-500">
-                      <div className="w-10 h-10 rounded-2xl bg-white border border-slate-100 text-[#00BCD4] flex items-center justify-center shrink-0 shadow-md">
-                        <Bot size={18} />
+                        <div className="bg-white border border-slate-200/60 rounded-3xl rounded-tl-sm p-5 shadow-sm text-[15px] font-medium text-slate-800 leading-relaxed">
+                          {streamingMessage.replace(/<thinking>[\s\S]*?<\/thinking>/g, "").trim()}
+                        </div>
                       </div>
-                      <div className="bg-white border border-slate-200/60 rounded-3xl rounded-tl-sm p-5 shadow-sm text-[15px] font-medium text-slate-800 leading-relaxed">
-                        {streamingMessage.replace(/<thinking>[\s\S]*?<\/thinking>/g, "").trim()}
+                  )}
+                  {loading && !streamingMessage && !currentAction && (
+                      <div className="flex gap-4">
+                        <div className="w-10 h-10 rounded-2xl bg-white border border-slate-100 text-[#00BCD4] flex items-center justify-center shrink-0 shadow-md opacity-50">
+                          <Bot size={18} />
+                        </div>
+                        <div className="bg-slate-100 border border-slate-200 rounded-3xl p-5 flex gap-1.5 items-center">
+                          <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" />
+                          <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce delay-75" />
+                          <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce delay-150" />
+                        </div>
                       </div>
-                    </div>
-                 )}
-                 {loading && !streamingMessage && !currentAction && (
-                    <div className="flex gap-4">
-                      <div className="w-10 h-10 rounded-2xl bg-white border border-slate-100 text-[#00BCD4] flex items-center justify-center shrink-0 shadow-md opacity-50">
-                        <Bot size={18} />
-                      </div>
-                      <div className="bg-slate-100 border border-slate-200 rounded-3xl p-5 flex gap-1.5 items-center">
-                        <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" />
-                        <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce delay-75" />
-                        <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce delay-150" />
-                      </div>
-                    </div>
-                 )}
-               </div>
-            )}
-          <div ref={messagesEndRef} />
-        </div>
+                  )}
+                </div>
+              )}
+              <div ref={messagesEndRef} />
+            </div>
+          </div>
 
-        {/* Footer Input */}
+          {/* Footer Input */}
           <div className="flex flex-col bg-white shrink-0">
-             {selectedFile && (
-               <div className="mx-6 p-2.5 bg-cyan-50 border border-cyan-100 rounded-2xl flex items-center justify-between text-xs font-bold text-cyan-600 animate-in slide-in-from-bottom-2">
-                 <div className="flex items-center gap-2 truncate">
-                   <div className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-pulse" />
-                   <span className="truncate max-w-[300px]">{selectedFile.name}</span>
-                 </div>
-                 <button type="button" onClick={() => setSelectedFile(null)} className="p-1 hover:bg-rose-100 text-rose-500 rounded-lg transition-colors">
-                   <X size={14} />
-                 </button>
-               </div>
-             )}
+            {selectedFile && (
+              <div className="mx-6 p-2.5 bg-cyan-50 border border-cyan-100 rounded-2xl flex items-center justify-between text-xs font-bold text-cyan-600 animate-in slide-in-from-bottom-2">
+                <div className="flex items-center gap-2 truncate">
+                  <div className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-pulse" />
+                  <span className="truncate max-w-[300px]">{selectedFile.name}</span>
+                </div>
+                <button type="button" onClick={() => setSelectedFile(null)} className="p-1 hover:bg-rose-100 text-rose-500 rounded-lg transition-colors">
+                  <X size={14} />
+                </button>
+              </div>
+            )}
             
-            <form onSubmit={handleSend} className="p-6 flex gap-3 relative">
+            <form onSubmit={handleSend} className="p-6 flex gap-3 relative border-t border-slate-100">
               <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="image/*,.pdf,.txt,.docx" />
               
               <div className="flex gap-2">
@@ -401,10 +485,10 @@ export default function FloatingAIChat() {
                   type="button"
                   onClick={toggleListening}
                   className={`w-12 h-12 flex items-center justify-center rounded-2xl transition-all border shadow-sm
-                    ${isListening ? 'bg-rose-500 border-rose-400 text-white animate-pulse' : 'bg-slate-50 border-slate-200 text-slate-400 hover:text-[#00BCD4] hover:bg-[#00BCD4]/5'}`}
-                  title="Enregistrement vocal"
+                    ${isListening ? 'bg-rose-50 border-rose-200 text-rose-500 animate-pulse' : 'bg-slate-50 border-slate-200 text-slate-400 hover:text-[#00BCD4] hover:bg-[#00BCD4]/5'}`}
+                  title={isListening ? "Arrêter l'enregistrement" : "Enregistrement vocal"}
                 >
-                  {isListening ? <MicOff size={20} strokeWidth={2.5} /> : <Mic size={20} strokeWidth={2.5} />}
+                  {isListening ? <Square size={18} fill="currentColor" /> : <Mic size={20} strokeWidth={2.5} />}
                 </button>
               </div>
 
@@ -425,8 +509,75 @@ export default function FloatingAIChat() {
             </form>
           </div>
         </div>
-      </div>
-    )}
+      )}
+
+      {/* Custom Delete Confirmation Modal */}
+      <AnimatePresence>
+        {showDeleteConfirm && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center"
+            onClick={() => setShowDeleteConfirm(false)}
+          >
+            {/* Backdrop */}
+            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+
+            {/* Modal */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.85, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.85, y: 20 }}
+              transition={{ type: "spring", damping: 25, stiffness: 350 }}
+              onClick={(e) => e.stopPropagation()}
+              className="relative w-[340px] rounded-3xl overflow-hidden shadow-2xl border border-white/20"
+              style={{ background: "linear-gradient(145deg, #0e7490 0%, #155e75 40%, #164e63 100%)" }}
+            >
+              {/* Decorative top glow */}
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-40 h-1 bg-gradient-to-r from-transparent via-cyan-300/60 to-transparent" />
+
+              <div className="p-8 text-center">
+                {/* Icon */}
+                <div className="mx-auto w-16 h-16 rounded-2xl bg-white/10 backdrop-blur-sm border border-white/20 flex items-center justify-center mb-5 shadow-lg">
+                  <Trash2 size={28} className="text-rose-300 drop-shadow-[0_0_8px_rgba(251,113,133,0.6)]" />
+                </div>
+
+                <h3 className="text-white font-black text-lg tracking-tight mb-2">
+                  {lang === 'fr' ? "Effacer l'historique ?" : "Clear history?"}
+                </h3>
+                <p className="text-cyan-100/70 text-sm font-medium leading-relaxed mb-8">
+                  {lang === 'fr'
+                    ? "Cette action supprimera toutes les conversations avec l'AI Orchestrator."
+                    : "This will delete all conversations with the AI Orchestrator."}
+                </p>
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setShowDeleteConfirm(false)}
+                    className="flex-1 py-3 rounded-2xl text-sm font-bold text-cyan-100 bg-white/10 border border-white/15 hover:bg-white/20 transition-all"
+                  >
+                    {lang === 'fr' ? 'Annuler' : 'Cancel'}
+                  </button>
+                  <button
+                    onClick={() => {
+                      clearMessages()
+                      setShowDeleteConfirm(false)
+                    }}
+                    className="flex-1 py-3 rounded-2xl text-sm font-bold text-white bg-gradient-to-r from-rose-500 to-red-500 hover:from-rose-600 hover:to-red-600 shadow-lg shadow-rose-500/30 transition-all hover:shadow-rose-500/50 active:scale-95"
+                  >
+                    {lang === 'fr' ? 'Supprimer' : 'Delete'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Decorative bottom glow */}
+              <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-32 h-px bg-gradient-to-r from-transparent via-cyan-400/30 to-transparent" />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Toggle Button Gamified */}
       <button

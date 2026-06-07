@@ -7,13 +7,15 @@ class TaskBase(BaseModel):
     description: str
     project_id: str
     assignee_ids: List[str] = []
-    status: str = "SPARK" # SPARK (Ideation), VALIDATION (Market Fit), INCUBATION (MVP/Prototype)
+    status: str = "TODO" # TODO, IN_PROGRESS, REVIEW, DONE
     priority: str = "MEDIUM" # LOW, MEDIUM, HIGH, URGENT
+    start_date: Optional[datetime] = None
     deadline: Optional[datetime] = None
     story_points: int = 0
     is_deliverable: bool = False
     attachments: List[str] = []
     review_feedback: Optional[str] = None
+    review_score: Optional[int] = None
     votes: List[str] = [] # List of User IDs who sparkled (voted) this idea
     audacity_score: int = 0 # 0-100 score of how disruptive/innovative the idea is
     parent_idea_id: Optional[str] = None # For ramifications (Idea Tree)

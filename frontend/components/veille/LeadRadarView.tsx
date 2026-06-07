@@ -1,3 +1,4 @@
+import { API_BASE_URL } from "@/lib/api"
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
@@ -81,7 +82,7 @@ const LeadRadarView: React.FC = () => {
   const fetchStats = async () => {
     setIsLoading(true);
     try {
-      const response = await axios.get("http://localhost:8000/api/tech/radar-stats", {
+      const response = await axios.get(`${API_BASE_URL}/api/tech/radar-stats`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const stats = response.data;
@@ -101,7 +102,7 @@ const LeadRadarView: React.FC = () => {
     setSelectedTopic(topic);
     setIsFetchingArticles(true);
     try {
-      const response = await axios.get(`http://localhost:8000/api/tech?category=${encodeURIComponent(topic)}`, {
+      const response = await axios.get(`${API_BASE_URL}/api/tech?category=${encodeURIComponent(topic)}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setTopicArticles(response.data);

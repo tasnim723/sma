@@ -1,0 +1,176 @@
+
+--- Match around line 2567 ---
+2559:                         onClick={() => mode === "idea" ? setStep("warroom-input") : setStep("import-details")}
+2560:                         className={`w-full py-6 rounded-2xl font-black text-lg transition-all duration-500 relative z-10 ${!mode
+2561:                           ? (theme === 'dark' ? "bg-blue-950/40 text-blue-900 border border-blue-900/40" : "bg-slate-100/50 text-slate-400 border border-slate-200")
+2562:                           : (theme === 'dark'
+2563:                             ? "bg-blue-600/10 border border-blue-400/50 hover:bg-blue-600 text-blue-400 hover:text-white shadow-[0_0_25px_rgba(37,99,235,0.3)] hover:shadow-[0_0_40px_rgba(37,99,235,0.6)]"
+2564:                             : "bg-[#00BCD4]/10 border border-[#00BCD4]/50 hover:bg-[#00BCD4] text-[#00BCD4] hover:text-white shadow-[0_0_20px_rgba(0,188,212,0.2)] hover:shadow-[0_0_30px_rgba(0,188,212,0.5)]")
+2565:                           }`}
+2566:                       >
+2567:                         {lang === 'fr' ? 'Continuer' : 'Continue'} <ChevronRight className="ml-2 w-5 h-5" />
+2568:                       </Button>
+2569:                     </div>
+2570:                   </motion.div>
+2571:                 )}
+2572: 
+
+--- Match around line 2704 ---
+2696:                           onClick={() => startCopilot()}
+2697:                           className={`w-full py-6 rounded-2xl font-black text-lg transition-all duration-500 relative z-10 ${(!projectName.trim() || rawIdea.trim().length < 15)
+2698:                             ? (theme === 'dark' ? "bg-blue-950/40 text-blue-900 border border-blue-900/40" : "bg-slate-100/50 text-slate-400 border border-slate-200")
+2699:                             : (theme === 'dark'
+2700:                               ? "bg-[#00BCD4]/10 border border-[#00BCD4]/50 hover:bg-[#00BCD4] text-[#00BCD4] hover:text-white shadow-[0_0_25px_rgba(0,188,212,0.3)] hover:shadow-[0_0_40px_rgba(0,188,212,0.6)]"
+2701:                               : "bg-[#00BCD4]/10 border border-[#00BCD4]/50 hover:bg-[#00BCD4] text-[#00BCD4] hover:text-white shadow-[0_0_20px_rgba(0,188,212,0.2)] hover:shadow-[0_0_30px_rgba(0,188,212,0.5)]")
+2702:                             }`}
+2703:                         >
+2704:                           <BrainCircuit size={20} className="mr-2" /> {lang === 'fr' ? 'Continuer' : 'Continue'} <ChevronRight className="ml-2 w-5 h-5" />
+2705:                         </Button>
+2706:                       </div>
+2707:                     </div>
+2708:                   </motion.div>
+2709:                 )}
+
+--- Match around line 2780 ---
+2772:                                 </div>
+2773:                               ))}
+2774:                             </div>
+2775:                           </div>
+2776:                           <div className="flex gap-3">
+2777:                             <Button variant="ghost" onClick={() => setStep(mode === "idea" ? "warroom-params" : "import-details")} className="rounded-xl font-black text-slate-400 hover:text-cyan-500 transition-colors uppercase tracking-widest text-[10px]">← Retour</Button>
+2778:                             <motion.div className="flex-1" animate={{ scale: [1, 1.01, 1] }} transition={{ duration: 3, repeat: Infinity }}>
+2779:                               <Button onClick={() => { setComprehensionData({ ...ed }); handleComprehensionContinue(); }} className="w-full bg-[#00BCD4]/10 border border-[#00BCD4]/50 hover:bg-[#00BCD4] text-[#00BCD4] hover:text-white shadow-[0_0_20px_rgba(0,188,212,0.2)] hover:shadow-[0_0_30px_rgba(0,188,212,0.5)] py-6 rounded-2xl font-black uppercase tracking-widest text-sm transition-all duration-500 relative overflow-hidden group flex items-center justify-center">
+2780:                                 <span className="relative z-10 flex items-center">Confirmer & Continuer <ArrowRight size={16} className="ml-2" /></span>
+2781:                               </Button>
+2782:                             </motion.div>
+2783:                           </div>
+2784:                         </motion.div>
+2785:                       )
+
+--- Match around line 3038 ---
+3030:                           onClick={() => {
+3031:                             setStep("warroom-tech")
+3032:                             if (!articles.length) fetchTechArticles(rawIdea)
+3033:                             const designCtx = constraints.visionArtistique ? `Vision artistique: ${constraints.visionArtistique}. Mécanismes: ${constraints.mechanismesJeu}` : ''
+3034:                             if (designCtx) launchIdeationBackground(designCtx)
+3035:                           }}
+3036:                           className={`w-full py-6 rounded-2xl font-black transition-all duration-300 uppercase tracking-widest text-sm ${contraintesStepIndex < CONTRAINTES_QUESTIONS.length ? "bg-slate-100 text-slate-400 dark:bg-blue-900/20 dark:text-blue-500/50" : "bg-gradient-to-r from-cyan-400 via-cyan-500 to-cyan-400 bg-[length:200%_auto] animate-gradient-x text-white shadow-xl border border-cyan-300/30"}`}
+3037:                         >
+3038:                           <Zap size={15} className="mr-2" /> Valider &amp; Analyser les Technologies
+3039:                         </Button>
+3040:                       </motion.div>
+3041:                     </div>
+3042:                   </motion.div>
+3043:                 )}
+
+--- Match around line 3281 ---
+3273:                             onClick={() => {
+3274:                               setStep("warroom-tech")
+3275:                               if (!articles.length) fetchTechArticles(rawIdea)
+3276:                               const designCtx = `Univers visuel choisi: ${designBrief.customAmbiance}`
+3277:                               launchIdeationBackground(designCtx)
+3278:                             }}
+3279:                             className="flex-1 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white h-12 rounded-xl font-black shadow-[0_0_20px_rgba(6,182,212,0.3)] transition-all"
+3280:                           >
+3281:                             Continuer <ArrowRight size={16} className="ml-2" />
+3282:                           </Button>
+3283:                         </div>
+3284:                       </motion.div>
+3285:                     )}
+3286:                   </motion.div>
+
+--- Match around line 3956 ---
+3948:                       <div className="flex gap-3 pt-2">
+3949:                         <Button variant="ghost" onClick={() => setStep("feasibility")} className="rounded-xl font-black text-slate-400">← Retour</Button>
+3950:                         {detailsTab === "planification" ? (
+3951:                           <Button onClick={() => { setStep("fonctionnalites"); generateDetailedTasks(selectedProject, selectedScenario); }} className="flex-1 bg-[#00BCD4]/10 border border-[#00BCD4]/50 hover:bg-[#00BCD4] text-[#00BCD4] hover:text-white shadow-[0_0_20px_rgba(0,188,212,0.2)] hover:shadow-[0_0_30px_rgba(0,188,212,0.5)] py-6 rounded-2xl font-black text-lg transition-all duration-500 relative overflow-hidden group">
+3952:                             <span className="relative z-10 flex items-center justify-center">Valider &amp; Définir les fonctionnalités <ChevronRight size={18} className="ml-1.5" /></span>
+3953:                           </Button>
+3954:                         ) : detailsTab === "equipe" ? (
+3955:                           <Button onClick={() => setDetailsTab("planification")} className="flex-1 bg-[#00BCD4]/10 border border-[#00BCD4]/50 hover:bg-[#00BCD4] text-[#00BCD4] hover:text-white shadow-[0_0_20px_rgba(0,188,212,0.2)] hover:shadow-[0_0_30px_rgba(0,188,212,0.5)] py-6 rounded-2xl font-black text-lg transition-all duration-500 relative overflow-hidden group">
+3956:                             <span className="relative z-10 flex items-center justify-center">Continuer vers le Planning <ChevronRight size={18} className="ml-1.5" /></span>
+3957:                           </Button>
+3958:                         ) : null}
+3959:                       </div>
+3960:                     </motion.div>
+3961:                   )
+
+--- Match around line 4585 ---
+4577:                                       impact: `Budget: ${simulatedBudgetMin.toLocaleString()}–${simulatedBudgetMax.toLocaleString()} DT`,
+4578:                                       onConfirm: () => { setDetailsTab("equipe"); setStep("projet-details") }
+4579:                                     })}
+4580:                                     className="flex flex-col items-center gap-2 p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/30 border-2 border-emerald-200 dark:border-emerald-900/50 hover:border-emerald-400 hover:shadow-[0_0_20px_rgba(16,185,129,0.2)] transition-all"
+4581:                                     disabled={isLoadingFeasibility || isRescuing}
+4582:                                   >
+4583:                                     <div className="w-9 h-9 rounded-xl bg-emerald-500 flex items-center justify-center shadow-[0_0_12px_rgba(16,185,129,0.4)]"><Check size={18} className="text-white" /></div>
+4584:                                     <p className="text-[10px] font-black text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">Valider</p>
+4585:                                     <p className="text-[8px] text-emerald-600/70 text-center leading-tight">Continuer vers Architecture</p>
+4586:                                   </motion.button>
+4587: 
+4588:                                   <motion.button whileHover={{ scale: 1.02, y: -2 }} whileTap={{ scale: 0.98 }}
+4589:                                     onClick={() => { logDecision({ step, stepLabel: 'Faisabilité', decision: 'Changer de scénario', reason: 'Réévaluation du planning', type: 'modify' }); setStep("concept-validation") }}
+4590:                                     className="flex flex-col items-center gap-2 p-3 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border-2 border-amber-200 dark:border-amber-900/50 hover:border-amber-400 hover:shadow-[0_0_20px_rgba(245,158,11,0.2)] transition-all"
+
+--- Match around line 6267 ---
+6259:                       >
+6260:                         <Button
+6261:                           onClick={() => {
+6262:                             const desc = selectedIdea ? `${selectedIdea.title} — ${selectedIdea.description}` : rawIdea
+6263:                             launchComprehension(desc)
+6264:                           }}
+6265:                           className="w-full bg-gradient-to-r from-cyan-400 via-cyan-500 to-cyan-400 bg-[length:200%_auto] animate-gradient-x text-white py-6 rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl border border-cyan-300/30 transition-all hover:-translate-y-0.5"
+6266:                         >
+6267:                           <Sparkles size={16} className="mr-2 drop-shadow-[0_0_10px_rgba(255,255,255,0.8)]" /> {lang === 'fr' ? 'Analyser ce concept' : 'Analyze this concept'} <ArrowRight size={16} className="ml-1.5 inline-block" />
+6268:                         </Button>
+6269:                       </motion.div>
+6270:                     </div>
+6271:                   </motion.div>
+6272:                 )}
+
+--- Match around line 6403 ---
+6395:                             Passer
+6396:                           </Button>
+6397:                           <Button
+6398:                             disabled={isFetchingTech || selectedArticles.length === 0}
+6399:                             onClick={() => selectedArticles.length > 0 && analyzeTrend(selectedArticles)}
+6400:                             className={`flex-[2] py-5 rounded-xl font-black text-sm transition-all duration-300 ${isFetchingTech || selectedArticles.length === 0 ? "bg-slate-200 text-slate-400 cursor-not-allowed" : "bg-gradient-to-r from-[#00BCD4] to-[#0097a7] text-white shadow-lg shadow-cyan-400/20 hover:-translate-y-0.5"}`}
+6401:                           >
+6402:                             <Sparkles size={15} className="mr-2" />
+6403:                             Analyser ({selectedArticles.length}) <ArrowRight size={15} className="ml-1.5" />
+6404:                           </Button>
+6405:                         </div>
+6406:                       </>
+6407:                     )}
+6408: 
+
+--- Match around line 6725 ---
+6717:                             setIsCdcExtracting(false)
+6718:                           }
+6719:                         }}
+6720:                         className="flex-[2] bg-[#00BCD4] hover:bg-[#0097a7] text-white py-6 rounded-xl font-black text-lg shadow-lg shadow-[#00BCD4]/20"
+6721:                       >
+6722:                         {isCdcExtracting ? (
+6723:                           <span className="flex items-center gap-2"><motion.span animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }} className="block w-5 h-5 border-2 border-white/30 border-t-white rounded-full" />Analyse IA en cours...</span>
+6724:                         ) : (
+6725:                           <span>{lang === 'fr' ? 'Analyser le Document' : 'Analyze Document'} <Sparkles className="ml-2 w-5 h-5 inline" /></span>
+6726:                         )}
+6727:                       </Button>
+6728:                     </div>
+6729:                   </motion.div>
+6730:                 )}
+
+--- Match around line 7125 ---
+7117:                         whileHover={{ scale: 1.02, boxShadow: '0 0 30px rgba(0,188,212,0.5), 0 0 60px rgba(0,188,212,0.2)' }}
+7118:                         whileTap={{ scale: 0.98 }}
+7119:                         onClick={() => { if (createdProjectId) router.push(`/projects/${createdProjectId}`); onSuccess(); onClose() }}
+7120:                         className="w-full text-white py-5 rounded-2xl font-black text-xl flex items-center justify-center gap-2 relative overflow-hidden"
+7121:                         style={{ background: 'linear-gradient(135deg, #00BCD4, #0097a7)', boxShadow: '0 4px 20px rgba(0,188,212,0.4)' }}>
+7122:                         <motion.div className="absolute inset-0 pointer-events-none"
+7123:                           style={{ background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent)' }}
+7124:                           animate={{ x: ['-100%', '200%'] }} transition={{ duration: 2, repeat: Infinity, ease: 'linear' }} />
+7125:                         <span className="relative z-10">{lang === 'fr' ? 'Aller au Projet' : 'Go to Project'}</span>
+7126:                         <motion.div className="relative z-10" animate={{ x: [0, 4, 0] }} transition={{ duration: 1.2, repeat: Infinity }}>
+7127:                           <ChevronRight className="w-6 h-6" />
+7128:                         </motion.div>
+7129:                       </motion.button>
+7130:                     </div>

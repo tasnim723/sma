@@ -1,0 +1,65 @@
+import os
+import re
+
+# IMPORTANT: Root dir for scanning
+root_dir = r"c:\Users\LENOVO\Downloads\PROJET_SMA (2)\PROJET_SMA\pfe-main (2)\pfe-main\pfe-main\frontend"
+
+# EXCLUSIONS
+exclude_dirs = {'node_modules', '.next', '.git'}
+
+for root, dirs, files in os.walk(root_dir):
+    # Modify dirs in-place to exclude unwanted directories
+    dirs[:] = [d for d in dirs if d not in exclude_dirs]
+    
+    for file in files:
+        if file.endswith(('.tsx', '.ts', '.js')):
+            path = os.path.join(root, file)
+            
+            with open(path, 'r', encoding='utf-8', errors='ignore') as f:
+                lines = f.readlines()
+            
+            if not lines: continue
+            
+            # 1. Fix "use client" position if it's not the first line
+            use_client_idx = -1
+            for i, line in enumerate(lines[:10]):
+                if '"use client"' in line or "'use client'" in line:
+                    use_client_idx = i
+                    break
+            
+            modified = False
+            if use_client_idx > 0:
+                use_client_line = lines.pop(use_client_idx)
+                if not use_client_line.endswith('\n'): use_client_line += '\n'
+                lines.insert(0, use_client_line)
+                modified = True
+                print(f"Fixed 'use client' in {path}")
+
+            # 2. Re-check for any missed localhost URLs and fix them with backticks
+            content = "".join(lines)
+            new_content = re.sub(r'"https?://localhost:8000/api/([^"]*)"', r'`${API_BASE_URL}/api/\1`', content)
+            new_content = re.sub(r'"https?://localhost:8000/api"', r'`${API_BASE_URL}/api`', new_content)
+            
+            # Also fix my previous broken attempt if any survived
+            new_content = re.sub(r'"\$\{API_BASE_URL\}([^"]*)"', r'`${API_BASE_URL}\1`', new_content)
+
+            if new_content != content:
+                # Add import if missing and not already there
+                if 'API_BASE_URL' not in new_content:
+                    import_line = 'import { API_BASE_URL } from "@/lib/api"\n'
+                    # Insert after "use client" if it exists, otherwise at top
+                    if '"use client"' in new_content or "'use client'" in new_content:
+                        new_content = new_content.replace('"use client"', '"use client"\n' + import_line, 1)
+                        new_content = new_content.replace("'use client'", "'use client'\n" + import_line, 1)
+                        # Clean up any potential double-newlines added
+                        new_content = new_content.replace('\n\nimport { API_BASE_URL }', '\nimport { API_BASE_URL }')
+                    else:
+                        new_content = import_line + new_content
+                
+                with open(path, 'w', encoding='utf-8') as f:
+                    f.write(new_content)
+                modified = True
+                print(f"Fixed URLs/Imports in {path}")
+
+if modified:
+    print("Safe fix completed.")

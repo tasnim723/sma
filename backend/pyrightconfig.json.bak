@@ -1,0 +1,21 @@
+{
+  "pythonVersion": "3.12",
+  "pythonInterpreterPath": "C:\\Users\\yassi\\scoop\\apps\\python\\current\\python.exe",
+  "extraPaths": [
+    "C:\\Users\\yassi\\scoop\\apps\\python\\current\\Lib\\site-packages",
+    "C:\\Users\\yassi\\scoop\\apps\\python\\current\\Lib",
+    "C:\\Users\\yassi\\scoop\\apps\\python\\current"
+  ],
+  "typeCheckingMode": "off",
+  "useLibraryCodeForTypes": true,
+  "reportMissingImports": "none",
+  "reportMissingModuleSource": "none",
+  "reportUnknownVariableType": "none",
+  "reportUnknownMemberType": "none",
+  "reportAttributeAccessIssue": "none",
+  "reportGeneralTypeIssues": "none",
+  "reportUnknownArgumentType": "none",
+  "reportUnknownParameterType": "none",
+  "reportUnknownLambdaType": "none",
+  "reportMissingTypeStubs": "none"
+}

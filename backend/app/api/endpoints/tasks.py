@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
 from app.core.db import get_database
 from app.models.task import TaskCreate, TaskResponse, TaskInDB
 from app.api.deps import get_current_user, check_manager_role
@@ -14,9 +14,9 @@ async def create_task(task: TaskCreate, current_user: dict = Depends(get_current
     db = get_database()
     task_dict = task.model_dump()
     
-    # Idea requirement: Default is SPARK
+    # Default status is TODO
     if not task_dict.get("status"):
-        task_dict["status"] = "SPARK"
+        task_dict["status"] = "TODO"
 
     result = await db["tasks"].insert_one(task_dict)
     
@@ -26,6 +26,20 @@ async def create_task(task: TaskCreate, current_user: dict = Depends(get_current
     # Log activity
     await log_activity(db, "TASK_CREATED", created_task["_id"], created_task["title"], current_user, details=f"Project: {created_task['project_id']}")
     
+    # Notify assignees
+    assignees = created_task.get("assignee_ids", [])
+    if assignees:
+        from app.api.endpoints.auth import push_notification
+        for uid in assignees:
+            if ObjectId.is_valid(uid):
+                await push_notification(
+                    db=db,
+                    user_id=uid,
+                    title="Nouvelle Tâche",
+                    message=f"Vous avez été assigné à la tâche : {created_task['title']}",
+                    urgency="MEDIUM"
+                )
+                
     return created_task
 
 @router.get("/project/{project_id}", response_model=List[TaskResponse])
@@ -88,6 +102,27 @@ async def update_task(task_id: str, task_update: dict, current_user: dict = Depe
             
         await log_activity(db, "TASK_ASSIGNED", updated_task["_id"], updated_task["title"], current_user, details="Assignees updated")
         
+        # Notify new assignees
+        new_assignees = [uid for uid in task_update.get("assignee_ids", []) if uid not in current_task.get("assignee_ids", [])]
+        if new_assignees:
+            from app.api.endpoints.auth import push_notification
+            for uid in new_assignees:
+                if ObjectId.is_valid(uid):
+                    await push_notification(
+                        db=db,
+                        user_id=uid,
+                        title="Nouvelle Tâche",
+                        message=f"Vous avez été assigné à la tâche : {updated_task['title']}",
+                        urgency="MEDIUM"
+                    )
+        
+    # Award XP if task is marked DONE
+    if task_update.get("status") == "DONE" and current_task.get("status") != "DONE":
+        from app.services.gamification import award_xp
+        for uid in updated_task.get("assignee_ids", []):
+            await award_xp(uid, 250)
+        await log_activity(db, "TASK_COMPLETED", updated_task["_id"], updated_task["title"], current_user, details="Tâche validée par le manager")
+            
     if "attachments" in task_update:
         current_task = await db["tasks"].find_one({"_id": ObjectId(task_id)})
         current_attachments = current_task.get("attachments", []) if current_task else []
@@ -168,21 +203,16 @@ async def handle_task_review(db, task_id, attachments, current_user):
     feedback = review_result["feedback"]
     
     if decision == "VALID":
-        await db["tasks"].update_one({"_id": ObjectId(task_id)}, {"$set": {"status": "DONE", "review_feedback": feedback, "updated_at": datetime.utcnow()}})
-        task["status"] = "DONE"
+        # User requested: AI validation should not auto-complete to DONE. It stays in REVIEW for manager's manual validation.
+        await db["tasks"].update_one({"_id": ObjectId(task_id)}, {"$set": {"status": "REVIEW", "review_feedback": feedback, "updated_at": datetime.utcnow()}})
+        task["status"] = "REVIEW"
         task["review_feedback"] = feedback
-        await log_activity(db, "TASK_UPDATED", str(task["_id"]), task["title"], current_user, details=f"Review passed: {feedback}")
-        
-        # AWArd XP to assignees
-        from app.services.gamification import award_xp
-        assignees = task.get("assignee_ids", [])
-        for uid in assignees:
-            await award_xp(uid, 250) # 250 XP per task
+        await log_activity(db, "TASK_UPDATED", str(task["_id"]), task["title"], current_user, details=f"AI Review passed: {feedback}. Pending manager validation.")
     else:
         await db["tasks"].update_one({"_id": ObjectId(task_id)}, {"$set": {"status": "IN_PROGRESS", "review_feedback": feedback, "updated_at": datetime.utcnow()}})
         task["status"] = "IN_PROGRESS"
         task["review_feedback"] = feedback
-        await log_activity(db, "TASK_UPDATED", str(task["_id"]), task["title"], current_user, details=f"Review failed: {feedback}")
+        await log_activity(db, "TASK_UPDATED", str(task["_id"]), task["title"], current_user, details=f"AI Review failed: {feedback}")
     
     task["_id"] = str(task["_id"])
     return task
@@ -204,6 +234,169 @@ async def trigger_manual_ai_review(task_id: str, current_user: dict = Depends(ge
         
     updated_task = await handle_task_review(db, task_id, attachments, current_user)
     return updated_task
+
+@router.post("/{task_id}/ai-review-smart")
+async def trigger_smart_ai_review(
+    task_id: str,
+    files: List[UploadFile] = File(default=[]),
+    links: Optional[str] = Form(default=None),
+    current_user: dict = Depends(get_current_user)
+):
+    import shutil
+    import os
+    from app.services.file_processor import extract_text_from_pdf_bytes
+    
+    db = get_database()
+    if not ObjectId.is_valid(task_id):
+        raise HTTPException(status_code=400, detail="Invalid task ID")
+        
+    task = await db["tasks"].find_one({"_id": ObjectId(task_id)})
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+        
+    # Process files
+    processed_contents = []
+    attachments_to_add = []
+    
+    UPLOAD_DIR = "uploads"
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
+    
+    for file in files:
+        if not file.filename:
+            continue
+        file_path = os.path.join(UPLOAD_DIR, file.filename)
+        # Read file bytes
+        file_bytes = await file.read()
+        
+        # Save to disk
+        with open(file_path, "wb") as buffer:
+            buffer.write(file_bytes)
+            
+        attachments_to_add.append(file.filename)
+        
+        # Extract content
+        content = ""
+        if file.filename.lower().endswith(".pdf"):
+            content = extract_text_from_pdf_bytes(file_bytes)
+        elif file.filename.lower().endswith((".txt", ".md", ".json", ".py", ".js", ".ts", ".tsx", ".html", ".css")):
+            content = file_bytes.decode("utf-8", errors="ignore")
+        else:
+            content = f"[Fichier binaire : {file.filename}]"
+            
+        processed_contents.append(f"Fichier '{file.filename}' :\n{content}")
+        
+    # Process links
+    attachments_links = []
+    if links:
+        link_list = [l.strip() for l in links.split(",") if l.strip()]
+        for link in link_list:
+            attachments_links.append(link)
+            processed_contents.append(f"Lien soumis : {link}")
+            
+    # Combine attachments
+    new_attachments = list(set(task.get("attachments", []) + attachments_to_add + attachments_links))
+    
+    # Save attachments to task
+    await db["tasks"].update_one(
+        {"_id": ObjectId(task_id)},
+        {"$set": {"attachments": new_attachments}}
+    )
+    
+    # Run the AI Review Agent
+    # We compile the task description + processed deliverables contents
+    deliverables_text = "\n\n".join(processed_contents) if processed_contents else "Aucun contenu de fichier ou lien n'a pu être extrait. Fichiers : " + str(new_attachments)
+    
+    from app.services.agents.review_agent import review_node
+    state = {
+        "task_description": task.get("description", ""),
+        "deliverables": deliverables_text
+    }
+    
+    # Run review node
+    review_result = await review_node(state)
+    
+    decision = review_result.get("decision", "INVALID")
+    feedback = review_result.get("feedback", "Livrable refusé — Impossible d'extraire les critères de validation.")
+    score = review_result.get("score", 50)
+    
+    # Update task in DB depending on decision
+    if decision == "VALID":
+        # Keep in REVIEW status, wait for manager confirmation
+        await db["tasks"].update_one(
+            {"_id": ObjectId(task_id)},
+            {"$set": {
+                "status": "REVIEW",
+                "review_feedback": feedback,
+                "updated_at": datetime.utcnow()
+            }}
+        )
+        await log_activity(db, "TASK_UPDATED", task_id, task["title"], current_user, details=f"AI Review passed with score {score}/100. Pending manager validation.")
+    else:
+        # Move back to IN_PROGRESS so user can correct and resubmit
+        await db["tasks"].update_one(
+            {"_id": ObjectId(task_id)},
+            {"$set": {
+                "status": "IN_PROGRESS",
+                "review_feedback": feedback,
+                "updated_at": datetime.utcnow()
+            }}
+        )
+        await log_activity(db, "TASK_UPDATED", task_id, task["title"], current_user, details=f"AI Review failed with score {score}/100: {feedback}")
+        
+    updated_task = await db["tasks"].find_one({"_id": ObjectId(task_id)})
+    updated_task["_id"] = str(updated_task["_id"])
+    
+    return {
+        "decision": decision,
+        "feedback": feedback,
+        "score": score,
+        "task": updated_task
+    }
+
+@router.post("/generate-detailed-tasks")
+async def generate_detailed_tasks_endpoint(body: dict, current_user: dict = Depends(check_manager_role)):
+    """
+    Generate a structured AI backlog for a project.
+    Fetches active team members from DB, calls the AI service.
+    Returns task list for human validation — NEVER saves automatically.
+    """
+    from app.services.backlog_generator import generate_detailed_tasks
+
+    project_id = body.get("project_id")
+    title = body.get("title", "")
+    description = body.get("description", "")
+    stack = body.get("stack", "")
+    duration_weeks = int(body.get("duration_weeks", 8))
+
+    if not title:
+        raise HTTPException(status_code=400, detail="title is required")
+
+    db = get_database()
+
+    # Fetch active team members for role suggestion (never for auto-assignment)
+    members_cursor = db["users"].find({"status": "ACTIVE"})
+    all_members = await members_cursor.to_list(length=100)
+    team_members = [
+        {
+            "id": str(m["_id"]),
+            "full_name": m.get("full_name", ""),
+            "position": m.get("position", ""),
+            "skills": m.get("skills", []),
+        }
+        for m in all_members
+    ]
+
+    # If project_id given, restrict to project members
+    if project_id and ObjectId.is_valid(project_id):
+        project = await db["projects"].find_one({"_id": ObjectId(project_id)})
+        if project:
+            member_ids = set(project.get("team_members", []))
+            team_members = [m for m in team_members if m["id"] in member_ids] or team_members
+
+    tasks = await generate_detailed_tasks(title, description, stack, duration_weeks, team_members)
+
+    return {"tasks": tasks, "count": len(tasks), "project_type_hint": "auto-detected"}
+
 
 @router.post("/{task_id}/vote")
 async def vote_for_idea(task_id: str, current_user: dict = Depends(get_current_user)):
@@ -270,3 +463,6 @@ async def boost_idea_with_ai(task_id: str, current_user: dict = Depends(get_curr
     await log_activity(db, "IDEA_BOOSTED", str(task["_id"]), task["title"], current_user, details=f"Generated {len(variants)} disruptive variants")
     
     return {"message": "Idea boosted!", "variants": new_ideas}
+
+
+

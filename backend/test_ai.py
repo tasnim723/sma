@@ -3,11 +3,16 @@ import sys
 from dotenv import load_dotenv
 load_dotenv(override=True)
 from app.services.agents.orchestrator import gatekeeper_system
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 
 async def main():
     sys.stdout = open('test_ai_out.txt', 'w', encoding='utf-8')
-    messages = [HumanMessage(content="Hello, what is the project status?")]
+    messages = [
+        SystemMessage(content="[CONTEXT] L'utilisateur actuel est: User (ID: unknown)"),
+        HumanMessage(content="aujourd'hui ?"),
+        AIMessage(content="Je suis votre AI Orchestrator. Comment puis-je vous aider à gérer votre espace de travail aujourd'hui ?"),
+        HumanMessage(content="est ce que j'ai des projets en retard ?")
+    ]
     state = {"messages": messages}
     
     print("Testing gatekeeper_system with astream...")

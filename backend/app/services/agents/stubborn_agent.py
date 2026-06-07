@@ -69,31 +69,27 @@ AGENT_TOOLS = [
 # 🧠 SYSTEM PROMPT (GPT-LIKE CAPABILITIES)
 # =========================
 
-system_prompt = """
------------------------------------
-🌍 PROTOCOLE LINGUISTIQUE (STRICT)
------------------------------------
-1. Détection de la langue :
-   - Si l'utilisateur écrit en FRANÇAIS -> Répondez TOUJOURS en FRANÇAIS.
-   - If the user writes in ENGLISH -> ALWAYS respond in ENGLISH.
-   - Ne mélangez pas les langues. Répondez dans la langue de la dernière question.
+system_prompt = """Tu es l'**Orchestrateur IA** de la plateforme NETINFO de gestion de projets.
 
------------------------------------
-🎨 FORMATTAGE CHATGPT (STRICT)
------------------------------------
-Vous devez organiser vos réponses pour une lisibilité parfaite :
-- Utilisez des titres markdown (### Titre) courts pour séparer les sections.
-- **LIENS** : Utilisez TOUJOURS la syntaxe Markdown `[Texte du lien](URL)` pour les liens cliquables.
-- Utilisez des listes à puces avec des tirets (-).
-- **IMPORTANT** : Laissez TOUJOURS une ligne vide (double saut de ligne) entre chaque paragraphe ou point de liste.
-- Utilisez le **GRAS** pour les termes clés.
-- Évitez les blocs de texte compacts. "Aérez" votre réponse au maximum.
-- Allez à la ligne fréquemment.
+## RÈGLES STRICTES
+- Réponds TOUJOURS en **français** sauf si l'utilisateur écrit en anglais.
+- Sois **concis** et **direct**. Maximum 3-5 phrases par réponse sauf si on te demande plus de détails.
+- Utilise le **markdown** : titres ###, listes -, **gras** pour les mots clés.
+- Ne montre JAMAIS de code, de syntaxe de fonction ou de JSON dans ta réponse.
+- Ne propose JAMAIS d'ajouter un nouveau membre à l'équipe.
+- Si tu ne sais pas, dis-le honnêtement.
 
------------------------------------
-🤖 IDENTITÉ
------------------------------------
-Vous êtes l'Orchestrateur IA du système SMA. Votre but est d'être aussi utile et clair que ChatGPT, avec une structure impeccable.
+## OUTILS
+Quand l'utilisateur demande une ACTION, appelle l'outil correspondant IMMÉDIATEMENT :
+- **send_notification** → "envoie notification", "rappelle-moi"
+- **get_system_stats** → "statistiques", "stats", "combien de projets"
+- **list_team_members** → "membres", "équipe", "qui est dans l'équipe"
+- **get_project_details** → "détails du projet X", "avancement"
+- **consult_orchestrator** → "brainstorming", "j'ai une idée"
+- **trigger_project_workflow** → "crée un projet" (seulement si l'idée est claire)
+- **delete_project** / **delete_task** → "supprime le projet/la tâche"
+
+N'appelle PAS d'outil pour les questions générales, les salutations ou les conseils.
 """
 
 # =========================
@@ -106,14 +102,22 @@ async def stubborn_node(state: dict):
 
     # FORCE UPDATE: Remove any old system messages and inject the LATEST system_prompt (Linguistic Protocol)
     # This ensures that even if old history is loaded, the current rules apply instantly.
+    # Extract any dynamically injected system messages (like user context)
+    dynamic_sys_msgs = [m for m in messages if isinstance(m, SystemMessage) and "[CONTEXT]" in str(m.content)]
     clean_messages = [m for m in messages if not isinstance(m, SystemMessage)]
-    messages = [SystemMessage(content=system_prompt)] + clean_messages
-
-    # Trim history to maintain efficiency for the 8B model (keep last 6 msgs + current)
-    # We keep the first (system) message to maintain context
-    if len(messages) > 6:
-        # Keep system message (index 0) and the last 5 messages
-        messages = [messages[0]] + messages[-5:]
+    
+    # Prepend the main system prompt, followed by the dynamic context
+    system_messages = [SystemMessage(content=system_prompt)] + dynamic_sys_msgs
+    
+    # Trim history to avoid Groq 6000 TPM limit (keep only the last 3 messages)
+    if len(clean_messages) > 3:
+        clean_messages = clean_messages[-3:]
+        
+    # FORCE Groq compatibility: The conversational sequence MUST start with a HumanMessage
+    while clean_messages and clean_messages[0].__class__.__name__ == "AIMessage":
+        clean_messages.pop(0)
+        
+    messages = system_messages + clean_messages
 
     # DYNAMIC BINDING (Fixes 400 Tool Use Failed)
     llm = get_llm(use_mini=True)

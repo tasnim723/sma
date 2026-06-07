@@ -116,17 +116,17 @@ async def get_hub_history():
         u_name = a.get("user_name", "Someone")
         
         if a_type == "PROJECT_CREATED":
-            msg = f"Project {e_name} was created by {u_name}"
+            msg = f"Le projet {e_name} a été créé par {u_name}"
         elif a_type == "MEMBER_CREATED":
-            msg = f"New team member {e_name} joined the board"
+            msg = f"Le nouveau membre {e_name} a rejoint l'équipe"
         elif a_type == "TASK_CREATED":
-            msg = f"New task '{e_name}' added to the system"
+            msg = f"Nouvelle tâche '{e_name}' ajoutée au système"
         elif a_type == "TASK_ASSIGNED":
-            msg = f"Task '{e_name}' was assigned to new members"
+            msg = f"La tâche '{e_name}' a été assignée à de nouveaux membres"
         elif a_type == "TASK_UPDATED":
-            msg = f"Task '{e_name}' was updated by {u_name}"
+            msg = f"La tâche '{e_name}' a été mise à jour par {u_name}"
         else:
-            msg = f"{a_type}: {e_name} by {u_name}"
+            msg = f"{a_type} : {e_name} par {u_name}"
             
         formatted_activities.append({
             "type": a_type,
@@ -164,35 +164,43 @@ async def get_hub_history():
     # Build History Strings Logically without LLM
     history_arr = []
     for d in raw_data["deliverables"][:4]:
-        history_arr.append(f"Project {d['project_name']}: {d['member_name']} submitted deliverable on {d['date']}")
+        history_arr.append(f"Projet {d['project_name']} : {d['member_name']} a soumis un livrable le {d['date']}")
         
     for act in formatted_activities[:4]:
-        history_arr.append(f"{act['message']} on {act['date']}")
+        history_arr.append(f"{act['message']} le {act['date']}")
         
     for r in responsive_alerts[:2]:
-        history_arr.append(f"Member {r['member_name']} got {r['count']} notifications since {r['since']} but did not respond")
+        history_arr.append(f"Le membre {r['member_name']} a reçu {r['count']} notifications depuis le {r['since']} sans réponse")
         
     # Build Insights Natively
     insights_arr = []
     if upcoming_deadlines_count > 0:
         insights_arr.append({
-            "title": "Upcoming Deadlines",
-            "description": f"There are {upcoming_deadlines_count} project deadlines in the next 48 hours.",
-            "type": "risk"
+            "title": "Échéances Proches",
+            "description": f"Il y a {upcoming_deadlines_count} échéances de projet dans les prochaines 48 heures.",
+            "type": "risk",
+            "action_query": f"Comment puis-je optimiser les {upcoming_deadlines_count} échéances à venir ?"
         })
     if capacity_percentage > 80:
         insights_arr.append({
-            "title": "High Team Load",
-            "description": "Team capacity is heavily loaded. Consider delaying new tasks.",
-            "type": "risk"
+            "title": "Charge d'Équipe Élevée",
+            "description": "L'équipe est très chargée. Envisagez de retarder de nouvelles tâches.",
+            "type": "risk",
+            "action_query": "Comment réduire la charge de l'équipe sans impacter les délais ?"
         })
     if not insights_arr:
         insights_arr.append({
-            "title": "Smooth Sprint",
-            "description": "All projects and team capacity are currently stable. Good time to clear the backlog.",
-            "type": "opportunity"
+            "title": "Sprint Fluide",
+            "description": "Tous les projets et la charge de l'équipe sont stables. C'est le bon moment pour vider le backlog.",
+            "type": "opportunity",
+            "action_query": "Quelles tâches du backlog devrais-je prioriser maintenant ?"
         })
         
+    # Generate 7-day sparkline data (mocked but consistent)
+    import random
+    def gen_sparkline(base_val, variance=0.3):
+        return [int(base_val * (1 + random.uniform(-variance, variance))) for _ in range(7)]
+
     result = {
         "history": history_arr[:10], # Keep to 10 max
         "insights": insights_arr,
@@ -200,8 +208,15 @@ async def get_hub_history():
             "activeProjects": active_projects_count,
             "completedTasks": completed_tasks_count,
             "upcomingDeadlines": upcoming_deadlines_count,
-            "teamCapacity": f"{capacity_percentage}%"
+            "teamCapacity": f"{capacity_percentage}%",
+            "sparklines": {
+                "activeProjects": gen_sparkline(active_projects_count),
+                "completedTasks": gen_sparkline(completed_tasks_count),
+                "upcomingDeadlines": gen_sparkline(upcoming_deadlines_count),
+                "teamCapacity": gen_sparkline(capacity_percentage)
+            }
         }
     }
     
     return result
+

@@ -1,10 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException  # type: ignore
 from typing import List
 from app.models.user import UserResponse, UserCreate, UserUpdate
 from app.api.deps import get_current_user, check_manager_role
 from app.core.db import get_database
 from app.core.auth import get_password_hash
-from bson import ObjectId
+from bson import ObjectId  # type: ignore
 from app.services.activity_log import log_activity
 
 router = APIRouter()
@@ -30,11 +30,34 @@ async def update_my_profile(member_in: UserUpdate, current_user: dict = Depends(
 @router.get("/", response_model=List[UserResponse])
 async def list_members(current_user: dict = Depends(get_current_user)):
     db = get_database()
-    users = await db["users"].find().to_list(100)
+    # Return users who are not REJECTED or PENDING (None status is considered ACTIVE by default)
+    users = await db["users"].find({"status": {"$nin": ["REJECTED", "PENDING"]}}).to_list(100)
     for user in users:
-        user["id"] = str(user.pop("_id"))
+        user_id = str(user.pop("_id"))
+        user["id"] = user_id
         # Strip password hash just in case
         user.pop("hashed_password", None)
+
+        # Calculate projects
+        tasks = await db["tasks"].find({"assignee_ids": user_id}).to_list(None)
+        
+        # Also count projects where they are team_members or lead_id
+        member_projects = await db["projects"].find({
+            "$or": [
+                {"team_members": user_id},
+                {"lead_id": user_id}
+            ]
+        }).to_list(None)
+        
+        projects = set(p.get("_id") for p in member_projects)
+        projects.update(t.get("project_id") for t in tasks if t.get("project_id"))
+        
+        user["project_count"] = len(projects)
+
+        # Calculate workload (e.g. 5 active tasks = 100%)
+        active_tasks = [t for t in tasks if t.get("status") not in ["DONE", "VALIDATED"]]
+        user["workload"] = min(len(active_tasks) * 20, 100)
+
     return users
 
 @router.post("/", response_model=UserResponse)
@@ -137,8 +160,8 @@ async def delete_member(member_id: str, current_user: dict = Depends(check_manag
 @router.get("/leaderboard")
 async def get_leaderboard(current_user: dict = Depends(get_current_user)):
     db = get_database()
-    # Fetch top 10 users by weekly_xp (primary) and level (secondary)
-    users = await db["users"].find().sort([("weekly_xp", -1), ("level", -1)]).to_list(10)
+    # Fetch top 10 users by weekly_xp (primary) and level (secondary), excluding managers
+    users = await db["users"].find({"role": {"$ne": "PROJECT_MANAGER"}}).sort([("weekly_xp", -1), ("level", -1)]).to_list(10)
     
     result = []
     for user in users:

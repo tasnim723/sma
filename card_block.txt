@@ -1,0 +1,46 @@
+﻿                      {generatedProjects.map((proj, i) => {
+                        const cfg = COMPLEXITY_CFG[proj.complexity] || COMPLEXITY_CFG.MEDIUM
+                        const isSelected = selectedProject?.id === proj.id
+                        return (
+                          <motion.button
+                            key={proj.id}
+                            initial={{opacity:0,y:12}} animate={{opacity:1,y:0}} transition={{delay:i*0.1}}
+                            onClick={() => { setSelectedProject(proj); setManagerFeatures(proj.modules||[]); }}
+                            className={`w-full text-left rounded-2xl border-2 overflow-hidden transition-all duration-300 ${isSelected ? "border-[#00BCD4] shadow-[0_0_24px_rgba(0,188,212,0.25)]" : "border-slate-200 dark:border-blue-900 hover:border-slate-300 dark:hover:border-blue-700"}`}
+                          >
+                            {/* Image header */}
+                            <div className="relative h-36 overflow-hidden bg-slate-100 dark:bg-blue-900/30">
+                              <img
+                                src={getImg(proj)}
+                                alt={proj.title}
+                                className="w-full h-full object-cover"
+                                onError={e => { (e.target as HTMLImageElement).style.display="none" }}
+                              />
+                              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent"/>
+                              {/* Badges on image */}
+                              <div className="absolute top-3 left-3 flex gap-2">
+                                <span className={`text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full ${cfg.bg} ${cfg.color} border ${cfg.border}`}>{cfg.icon} {cfg.label}</span>
+                                <span className={`text-[9px] font-black px-2.5 py-1 rounded-full ${proj.comparison_score>=85?"bg-emerald-100 text-emerald-700 border border-emerald-200":proj.comparison_score>=70?"bg-blue-100 text-blue-700 border border-blue-200":"bg-slate-100 text-slate-600 border border-slate-200"}`}>⭐ {proj.comparison_score}%</span>
+                              </div>
+                              {isSelected && <div className="absolute top-3 right-3 w-7 h-7 rounded-full bg-[#00BCD4] flex items-center justify-center shadow-lg"><Check size={14} className="text-white"/></div>}
+                              {/* Title on image */}
+                              <div className="absolute bottom-3 left-3 right-3">
+                                <p className="text-white font-black text-base leading-tight drop-shadow-md">{proj.title}</p>
+                              </div>
+                            </div>
+                            {/* Content */}
+                            <div className={`p-4 space-y-3 ${isSelected ? "bg-cyan-50/60 dark:bg-blue-900/20" : "bg-white dark:bg-blue-950/20"}`}>
+                              <p className="text-xs text-slate-600 dark:text-blue-300 font-medium leading-relaxed">{proj.description}</p>
+                              {/* Stack */}
+                              <div className="flex flex-wrap gap-1.5">
+                                {proj.stack?.slice(0,4).map((s,j)=><span key={j} className="px-2 py-0.5 bg-slate-800 dark:bg-blue-950 text-white text-[10px] font-black rounded-md">{s}</span>)}
+                              </div>
+                              {/* Metrics row */}
+                              <div className="flex items-center gap-4 pt-1 border-t border-slate-100 dark:border-blue-800">
+                                <div><p className="text-[9px] font-black text-slate-400 uppercase">Durée équilibrée</p><p className="text-sm font-black text-slate-700 dark:text-blue-200">{proj.scenarios?.balanced?.duration_weeks} semaines</p></div>
+                                <div><p className="text-[9px] font-black text-slate-400 uppercase">Innovation</p><p className="text-sm font-black text-[#00BCD4]">{proj.innovation_score}%</p></div>
+                                <div><p className="text-[9px] font-black text-slate-400 uppercase">Modules</p><p className="text-sm font-black text-slate-700 dark:text-blue-200">{proj.modules?.length||0} modules</p></div>
+                              </div>
+                            </div>
+                          </motion.button>
+                        )

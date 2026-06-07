@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { DM_Sans } from "next/font/google";
+import AxiosInterceptor from "@/components/AxiosInterceptor";
 import "./globals.css";
 
 const dmSans = DM_Sans({
@@ -23,7 +24,10 @@ export default function RootLayout({
       className={`${dmSans.variable} h-full antialiased`}
       suppressHydrationWarning
     >
-    <body className="h-full overflow-hidden flex flex-col font-sans">{children}</body>
+    <body className="h-full overflow-hidden flex flex-col font-sans">
+      <AxiosInterceptor />
+      {children}
+    </body>
     </html>
   );
 }

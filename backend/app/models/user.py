@@ -17,6 +17,7 @@ class UserBase(BaseModel):
     avatar_url: Optional[str] = ""
     grade: Optional[str] = ""  # Junior, Senior, Expert
     experience: Optional[str] = ""  # Description expérience
+    gender: Optional[str] = ""      # "Homme" ou "Femme"
     xp: int = 0
     weekly_xp: int = 0
     level: int = 1
@@ -35,8 +36,11 @@ class UserResponse(UserBase):
     weekly_xp: int = 0
     level: int = 1
     created_at: datetime = Field(default_factory=datetime.utcnow)
+    project_count: int = 0
+    workload: int = 0
 
 class UserUpdate(BaseModel):
+    email: Optional[EmailStr] = None
     full_name: Optional[str] = None
     role: Optional[str] = None
     position: Optional[str] = None
@@ -47,6 +51,8 @@ class UserUpdate(BaseModel):
     linkedin_url: Optional[str] = None
     cv_url: Optional[str] = None
     phone_number: Optional[str] = None
+    gender: Optional[str] = None
+    avatar_url: Optional[str] = None
 
 class GoogleLoginRequest(BaseModel):
     token: str

@@ -1,11 +1,8 @@
 from langchain_core.messages import SystemMessage, HumanMessage
+from app.core.keys import get_rotated_groq_key
 from langchain_openai import ChatOpenAI
 
-def get_llm(use_mini: bool = True):
-    import os
-    from dotenv import load_dotenv
-    load_dotenv()
-    
+
 def get_llm(use_mini: bool = True, temperature: float = 0):
     import os
     from dotenv import load_dotenv
@@ -16,33 +13,37 @@ def get_llm(use_mini: bool = True, temperature: float = 0):
     env_url = os.getenv("OLLAMA_URL")
     ollama_url = env_url if env_url and env_url.strip() else "http://127.0.0.1:11434"
     
-    # Check if we have Mistral or Llama3 ready locally
-    try:
-        res = requests.get(f"{ollama_url}/api/tags", timeout=2)
-        models = [m['name'] for m in res.json().get('models', [])]
-        # Mistral is much better for tools in certain Ollama versions
-        final_model = None
-        if "mistral:latest" in models or "mistral" in models:
-            final_model = "mistral"
-        elif "llama3:latest" in models or "llama3" in models:
-            final_model = "llama3"
-            
-        if final_model:
-            print(f"DEBUG: SMA ENGINE -> LOCAL-AI (Model: {final_model}, Temp: {temperature})")
-            return ChatOpenAI(temperature=temperature, model=final_model, base_url=f"{ollama_url}/v1", api_key="ollama")
-    except:
-        pass
+    use_local = str(os.getenv("USE_LOCAL_AI", "false")).lower() == "true"
+    if use_local:
+        # Check if we have Mistral or Llama3 ready locally
+        try:
+            res = requests.get(f"{ollama_url}/api/tags", timeout=2)
+            models = [m['name'] for m in res.json().get('models', [])]
+            # Mistral is much better for tools in certain Ollama versions
+            final_model = None
+            if "mistral:latest" in models or "mistral" in models:
+                final_model = "mistral"
+            elif "llama3:latest" in models or "llama3" in models:
+                final_model = "llama3"
+                
+            if final_model:
+                print(f"DEBUG: SMA ENGINE -> LOCAL-AI (Model: {final_model}, Temp: {temperature})")
+                return ChatOpenAI(temperature=temperature, model=final_model, base_url=f"{ollama_url}/v1", api_key="ollama", max_retries=3, timeout=120)
+        except:
+            pass
 
     # 🌩️ HYBRID CLOUD FALLBACK (Active until Mistral download finishes)
     # Using llama-3.1-8b-instant for zero-error stability.
     print(f"DEBUG: SMA ENGINE -> HYBRID-CLOUD (Groq 8B) for stability (Temp: {temperature})...")
-    api_key = os.getenv("GROQ_API_KEY") or os.getenv("OPENAI_API_KEY")
+    api_key = get_rotated_groq_key()
     return ChatOpenAI(
         temperature=temperature, 
         model="llama-3.1-8b-instant",
         max_tokens=1024,
         base_url="https://api.groq.com/openai/v1",
-        api_key=api_key
+        api_key=api_key,
+        max_retries=2,
+        timeout=30
     )
 
 class BaseAgent:

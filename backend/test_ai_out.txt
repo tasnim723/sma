@@ -1,4 +1,14 @@
 Testing gatekeeper_system with astream...
+DEBUG: SMA ENGINE -> HYBRID-CLOUD (Groq 8B) for stability (Temp: 0)...
+DEBUG: Stubborn Agent Tool Calls: ['get_system_stats']
+UPDATE: ['stubborn']
+Node stubborn returned messages: 1
+  -> AIMessage: tool_calls=[{'name': 'get_system_stats', 'args': {}, 'id': 'w6nxvfnt1', 'type': 'tool_call'}]
+UPDATE: ['tools']
+Node tools returned messages: 1
+  -> ToolMessage: tool_calls=None
+DEBUG: SMA ENGINE -> HYBRID-CLOUD (Groq 8B) for stability (Temp: 0)...
+DEBUG: Stubborn Agent Response: Oui, vous avez un projet en retard : "jeux video 3d" qui est en 0% d'avancement....
 UPDATE: ['stubborn']
 Node stubborn returned messages: 1
   -> AIMessage: tool_calls=[]
